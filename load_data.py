@@ -39,6 +39,10 @@ def load_data():
     "calculated_host_listings_count",
     "reviews_per_month"] 
     price = listings["price"]
+    price = price.str.replace("$","")
+    price = price.str.replace(",","")
+    price = price.astype(float)
+
     listings = listings.filter(variables_listing)
     reviews = reviews.filter(["comments","date"])
     return price, listings, reviews
