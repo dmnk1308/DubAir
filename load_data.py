@@ -45,4 +45,11 @@ def load_data():
 
     listings = listings.filter(variables_listing)
     reviews = reviews.filter(["comments","date"])
+
+    bath_number = listings["bathrooms_text"].copy()
+    bath_number = bath_number.str.replace("half", "0.5", case = False)
+    bath_number = bath_number.str.extract('(\d+.\d|\d+)')
+
+    listings["bath_number"] = bath_number
+
     return price, listings, reviews
