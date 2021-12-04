@@ -137,6 +137,14 @@ def load_data_cleansed():
         fil = listings["property_type"].str.contains(j, case = True, na = False)
         listings["property_type"][fil] = "Others"
 
+
+    # drop insignificant binary variables
+    listings = listings.drop("has_availability", axis = 1)
+    listings = listings.drop("instant_bookable", axis = 1)
+    listings = listings.drop("host_identity_verified", axis = 1)
+    listings = listings.drop("host_is_superhost", axis = 1)
+
+
 ####################### AMENITIES ###############################
     # load amenities
     amenities = listings["amenities"]
