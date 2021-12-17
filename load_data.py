@@ -152,6 +152,7 @@ def load_data_cleansed():
     listings = listings.drop("host_is_superhost", axis = 1)
 
 
+
 ####################### AMENITIES ###############################
     # load amenities
     amenities = listings["amenities"]
@@ -180,15 +181,8 @@ def load_data_cleansed():
     "Cooking basics", "Dining table", "Dishes and silverware", "Host greets you", "Luggage dropoff allowed", 
     "Self check-in", "Pets allowed", "Suitable for events", "Ceiling fan"], regex = False)
 
-    # sum up all luxury or extraordinary equipment
-    am_df = in_one(am_df, ["Piano", "Ping pong table", "Kayak", "BBQ grill", "Bidet", "Bikes"], "Special_stuff", regex = False, sum = True, drop = True)
-
     # summarize in new columns which gives the total number
-    am_df = in_one(am_df, "(HDTV)|(^\d\d..TV)|(^TV)", "TV_number", regex = True, sum = True, drop = True)
-    am_df = in_one(am_df, "(game console)", "Oven_number", regex = True, sum = True, drop = True)
-    am_df = in_one(am_df, "(^outdoor)", "Outdoor_stuff_number", regex = True, sum = True, drop = True)
-    am_df = in_one(am_df, "(^Baby)|(^Crib$)|( crib$)|(^High chair$)", "Baby_friendly", regex = True, sum = True, drop = True)
-    am_df = in_one(am_df, "(sound system)", "sound_system_number", regex = True, sum = True, drop = True)
+    ### Kicked everything to binary
 
     # summarize in new columns which gives the availability
     am_df = in_one(am_df, "(.oven)|(^oven)", "Oven_available", regex = True, sum = False, drop = True)
@@ -196,8 +190,8 @@ def load_data_cleansed():
     am_df = in_one(am_df, "(refrigerator.)|(refrigerator)|(^Freezer$)", "Refridgerator_available", regex = True, sum = False, drop = True)
     am_df = in_one(am_df, "(body soap)", "Body_soap_available", regex = True, sum = False, drop = True)
     am_df = in_one(am_df, "(garden or backyard)|(^backyard)|(^garden)", "Garden_backyard_available", regex = True, sum = False, drop = True)
-    am_df = in_one(am_df, "(^free.*parking)|(^free.*garage)|(^free.*carport)", "Free_parking_number", regex = True, sum = False, drop = True)
-    am_df = in_one(am_df, "(^paid.*parking)|(^paid.*garage)|(^paid.*carport)", "Paid_parking_number", regex = True, sum = False, drop = True)
+    am_df = in_one(am_df, "(^free.*parking)|(^free.*garage)|(^free.*carport)", "Free_parking", regex = True, sum = False, drop = True)
+    am_df = in_one(am_df, "(^paid.*parking)|(^paid.*garage)|(^paid.*carport)", "Paid_parking", regex = True, sum = False, drop = True)
     am_df = in_one(am_df, "(^Children’s books and toys)", "Children_Entertainment", regex = True, sum = False, drop = True)
     am_df = in_one(am_df, "(^Dedicated workspace)", "Workspace", regex = True, sum = False, drop = True)
     am_df = in_one(am_df, "(conditioner)|(shampoo)", "Shampoo_Conditioner_available", regex = True, sum = False, drop = True)
@@ -216,11 +210,15 @@ def load_data_cleansed():
     am_df = in_one(am_df, "(^Lockbox$)|(^Safe$)", "Safe_available", regex = True, sum = False, drop = True)
     am_df = in_one(am_df, "(sauna)", "Sauna_available", regex = True, sum = False, drop = True)
     am_df = in_one(am_df, "(^Waterfront$)|(^Beachfront$)|(^Lake access$)", "Water_location", regex = True, sum = False, drop = True)
+    am_df = in_one(am_df, "(sound system)", "sound_system_available", regex = True, sum = False, drop = True)
+    am_df = in_one(am_df, "(HDTV)|(^\d\d..TV)|(^TV)", "TV_available", regex = True, sum = False, drop = True)
+    am_df = in_one(am_df, "(^outdoor)", "Outdoor_stuff", regex = True, sum = False, drop = True)
+    am_df = in_one(am_df, "(game console)", "Game_consoles", regex = True, sum = False, drop = True)
+    am_df = in_one(am_df, "(^Baby)|(^Crib$)|( crib$)|(^High chair$)", "Baby_friendly", regex = True, sum = False, drop = True)
 
 
-    am_df["Special_stuff"] = am_df["Special_stuff"] + am_df["Sauna_available"]
-
-    am_df = am_df.drop("Sauna_available", axis = 1)
+    # sum up all luxury or extraordinary equipment
+    am_df = in_one(am_df, ["Piano", "Ping pong table", "Kayak", "BBQ grill", "Bidet", "Bikes", "Sauna_available"], "Special_stuff", regex = False, sum = False, drop = True)
 
     # join amenities with listings
     listings = listings.join(am_df)
@@ -346,16 +344,16 @@ def load_data_cleansed_imputed():
     rest_var = ['Bathtub', 'Bed linens', 'Breakfast', 'Cleaning before checkout', 'Dishwasher',
                 'Elevator', 'Hair dryer', 'Indoor fireplace', 'Long term stays allowed',
                 'Private entrance', 'Security cameras on property', 'Single level home',
-                'Special_stuff', 'TV_number', 'Outdoor_stuff_number', 'Baby_friendly',
-                'sound_system_number', 'Oven_available', 'Stoves_available',
+                'Special_stuff', 'TV_available', 'Outdoor_stuff', 'Baby_friendly',
+                'sound_system_available', 'Oven_available', 'Stoves_available',
                 'Refridgerator_available', 'Body_soap_available',
-                'Garden_backyard_available', 'Free_parking_number',
-                'Paid_parking_number', 'Children_Entertainment', 'Workspace',
+                'Garden_backyard_available', 'Free_parking',
+                'Paid_parking', 'Children_Entertainment', 'Workspace',
                 'Shampoo_Conditioner_available', 'Fast_wifi_available', 'Gym_available',
                 'Coffee_machine_available', 'Dryer_available', 'Washer_available',
                 'Hot_tub_available', 'Pool_available', 'Patio_balcony_available',
                 'Wifi_available', 'AC_available', 'heating_available',
-                'Kitchen_available', 'Safe_available', 'Water_location']
+                'Kitchen_available', 'Safe_available', 'Water_location', "Game_consoles"]
 
     for i in range(len(rest_var)):
         ind = listings[listings[rest_var[i]].isna()][rest_var[i]].index
@@ -369,9 +367,32 @@ def load_data_cleansed_imputed():
         print(listings.isna().sum()[listings.isna().sum().values > 0])
 
     # still need to drop unnecessary things again: host_id, host_url
-    listings = listings.drop(["last_scraped", "host_id", "host_url"], axis = 1)
+    listings = listings.drop(["host_id", "host_url"], axis = 1)
 
     print("Have fun implementing your models.")
+    listings = listings.reset_index(drop = True)
+
+        # binarize baths
+    step1 = np.round(listings["bath_number"], 0).astype(int)
+    step2 = np.where(step1 > 3, 4, step1).astype(str)
+    mlb = MultiLabelBinarizer()
+    am_array = mlb.fit_transform(step2)
+    col = mlb.classes_
+    col[-1] = "greater3"
+    baths = pd.DataFrame(am_array, columns = "bath_number_"+col)
+
+    # binarize bedrooms
+    step1 = np.round(listings["bedrooms"], 0).astype(int)
+    step2 = np.where(step1 > 3, 4, step1).astype(str)
+    mlb = MultiLabelBinarizer()
+    am_array = mlb.fit_transform(step2)
+    col = mlb.classes_
+    col[-1] = "greater3"
+    bedrooms = pd.DataFrame(am_array, columns = "bedroom_number_"+col)
+
+    listings = pd.concat([listings, baths, bedrooms], axis = 1)
+    listings = listings.drop(["bath_number", "bedrooms"], axis = 1)
+
 
     return price, listings, reviews
 
