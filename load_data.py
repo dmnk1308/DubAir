@@ -1,14 +1,21 @@
+import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MultiLabelBinarizer
 from helpers import in_one, drop_col, add_col
 import ast
+import requests
+from bs4 import BeautifulSoup as bs
+import statsmodels.api as sm
+from scipy.stats import halfnorm
+import warnings
+
 
 def load_data():
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     url_reviews = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/reviews.csv.gz"
     listings = pd.read_csv(url_listing)
     reviews = pd.read_csv(url_reviews)
-    variables_listing= ["name", "last_scraped", "description", "neighborhood_overview", "host_name", "host_since", "host_location", 
+    variables_listing= ["name", "last_scraped", "description", "neighborhood_overview", "host_id", "host_url", "host_name", "host_since", "host_location",
     "host_about", "host_is_superhost", "host_listings_count", "host_has_profile_picture","host_identity_verified",
     "neighbourhood_cleansed",
     "latitude",
@@ -221,3 +228,152 @@ def load_data_cleansed():
     listings = listings.drop("amenities", axis = 1)
 
     return price, listings, reviews
+
+
+def load_data_cleansed_imputed():
+    price, listings, reviews = load_data_cleansed()
+
+    print("Data is cleansed. Now start the imputation.")
+
+    ### Imputation starts here
+
+    ## very simple imputation
+
+    # name and description, take room_type instead
+    ind = listings[listings["name"].isna()]["name"].index
+    listings.loc[ind, "name"] = listings.loc[ind, "room_type"]
+
+    ind = listings[listings["description"].isna()]["description"].index
+    listings.loc[ind, "description"] = listings.loc[ind, "room_type"]
+
+    # neighbourhood-overview (=description) just neihgbourhood cleansed
+    ind = listings[listings["neighborhood_overview"].isna()]["neighborhood_overview"].index
+    listings.loc[ind, "neighborhood_overview"] = listings.loc[ind, "neighbourhood_cleansed"]
+
+    # host_about
+    ind = listings[listings["host_about"].isna()]["host_about"].index
+    listings.loc[ind, "host_about"] = " "
+
+    # first and last review, you might want to think about this again
+    ind = listings[listings["first_review"].isna()]["first_review"].index
+    listings.loc[ind, "first_review"] = listings.loc[ind, "last_scraped"]
+
+    ind = listings[listings["last_review"].isna()]["last_review"].index
+    listings.loc[ind, "last_review"] = listings.loc[ind, "last_scraped"]
+
+    # Reviews per Month are probably zero
+    ind = listings[listings["reviews_per_month"].isna()]["reviews_per_month"].index
+    listings.loc[ind, "reviews_per_month"] = listings.loc[ind, "number_of_reviews"]
+
+    # If the host_location is not given, they are probably in Ireland
+    ind = listings[listings["host_location_country"].isna()]["host_location_country"].index
+    listings.loc[ind, "host_location_country"] = "Ireland"
+
+
+    ## Some webscraping for host-variables -> shall be the same profiles
+
+    ind_s = listings[listings["host_name"].isna()]["host_name"].index
+    rel_URL = listings.loc[ind_s, "host_url"]
+    ids = listings.loc[ind_s, "host_id"]
+
+    name = []
+    id_ver = []
+    for i in range(len(ind_s)):
+        listings.loc[ind_s, "host_listings_count"] = len(listings[listings.host_id == ids.values[i]])
+        session = requests.Session()
+        html_code = session.get(rel_URL.values[i]).content
+        soup = bs(html_code, "html.parser")
+        name_html = soup.select("._a0kct9 ._14i3z6h")
+        # the if statement is for profiles that cannot be called for any reason
+        if len(name_html) == 0:
+            name.append("Anonymous")
+        else:
+            name.append(name_html[0].text[8:])
+
+    listings.loc[ind_s, "host_name"] = name
+    listings.loc[ind_s, "host_since"] = listings.loc[ind_s, "first_review"]
+
+
+    ## Now linear Models for beds and bedrooms
+
+    # accomodates and beds are quite linear
+    # So let us estimate linear models and predict, for beds
+    Y = listings["beds"]
+    x = listings["accommodates"]
+    X = pd.DataFrame([x]).transpose()
+    X = sm.add_constant(X)  # adding a constant
+
+    # Fit model for beds
+    model = sm.OLS(Y, X, missing='drop').fit()
+
+    ind = listings[listings["beds"].isna()]["beds"].index
+    x0 = listings["accommodates"][ind]
+    x0 = sm.add_constant(x0)
+    predictions = model.predict(x0)
+    listings.loc[ind, "beds"] = round(predictions)
+
+    # beds and bedrooms are very linear as well
+    # do the same here
+    Y = listings["bedrooms"]
+    x = listings["beds"]
+    X = pd.DataFrame([x]).transpose()
+    X = sm.add_constant(X)  # adding a constant
+
+    # Fit model for beds
+    model = sm.OLS(Y, X, missing='drop').fit()
+
+    ind = listings[listings["bedrooms"].isna()]["bedrooms"].index
+    x0 = listings["beds"][ind]
+    x0 = sm.add_constant(x0)
+    predictions = model.predict(x0)
+    listings.loc[ind, "bedrooms"] = round(predictions)
+
+
+    # All those review score variables
+    review_var = ['review_scores_rating', 'review_scores_accuracy', 'review_scores_cleanliness',
+                  'review_scores_communication', 'review_scores_location', 'review_scores_value']
+    # they look quite halfnormal
+    for i in range(len(review_var)):
+        ind = listings[listings[review_var[i]].isna()][review_var[i]].index
+        sd = np.nanstd(listings[review_var[i]],  ddof=0)  # ML-estimator
+        sd = sd - sd / (4 * len(listings[review_var[i]]))  # MLE bias corrected
+        np.random.seed(123)
+        fill_ind = (halfnorm.rvs(loc=0, scale=sd, size=len(ind)) * -1) + 5
+        listings.loc[ind, review_var[i]] = fill_ind
+
+
+    ### Binary Stuff
+    rest_var = ['Bathtub', 'Bed linens', 'Breakfast', 'Cleaning before checkout', 'Dishwasher',
+                'Elevator', 'Hair dryer', 'Indoor fireplace', 'Long term stays allowed',
+                'Private entrance', 'Security cameras on property', 'Single level home',
+                'Special_stuff', 'TV_number', 'Outdoor_stuff_number', 'Baby_friendly',
+                'sound_system_number', 'Oven_available', 'Stoves_available',
+                'Refridgerator_available', 'Body_soap_available',
+                'Garden_backyard_available', 'Free_parking_number',
+                'Paid_parking_number', 'Children_Entertainment', 'Workspace',
+                'Shampoo_Conditioner_available', 'Fast_wifi_available', 'Gym_available',
+                'Coffee_machine_available', 'Dryer_available', 'Washer_available',
+                'Hot_tub_available', 'Pool_available', 'Patio_balcony_available',
+                'Wifi_available', 'AC_available', 'heating_available',
+                'Kitchen_available', 'Safe_available', 'Water_location']
+
+    for i in range(len(rest_var)):
+        ind = listings[listings[rest_var[i]].isna()][rest_var[i]].index
+        m = np.nanmean(listings[rest_var[i]])
+        listings.loc[ind, rest_var[i]] = np.random.binomial(n=1, p=m, size=len(ind))
+
+    if len(listings.isna().sum()[listings.isna().sum().values > 0]) == 0:
+        print("Imputation done. No NaN's are left in the data.")
+    else:
+        print("Imputation failed. There are NaN's left; here is where:")
+        print(listings.isna().sum()[listings.isna().sum().values > 0])
+
+    # still need to drop unnecessary things again: host_id, host_url
+    listings = listings.drop(["last_scraped", "host_id", "host_url"], axis = 1)
+
+    print("Have fun implementing your models.")
+
+    return price, listings, reviews
+
+
+
