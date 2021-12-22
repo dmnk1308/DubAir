@@ -67,6 +67,8 @@ def load():
     listings = listings.filter(variables_listing)
     reviews = reviews.filter(["comments","date"])
 
+    print("Data loaded.")
+
     return price, listings, reviews
 
 
@@ -228,13 +230,13 @@ def clean():
     # drop amenities columns
     listings = listings.drop("amenities", axis = 1)
 
+    print("Data cleansed.")
+
     return price, listings, reviews
 
 
 def impute():
     price, listings, reviews = clean()
-
-    print("Data is cleansed. Now start the imputation.")
 
     ### Imputation starts here
 
@@ -372,30 +374,7 @@ def impute():
     # still need to drop unnecessary things again: host_id, host_url
     listings = listings.drop(["host_id", "host_url"], axis = 1)
 
-    print("Have fun implementing your models.")
     listings = listings.reset_index(drop = True)
-
-        # binarize baths
-    step1 = np.round(listings["bath_number"], 0).astype(int)
-    step2 = np.where(step1 > 3, 4, step1).astype(str)
-    mlb = MultiLabelBinarizer()
-    am_array = mlb.fit_transform(step2)
-    col = mlb.classes_
-    col[-1] = "greater3"
-    baths = pd.DataFrame(am_array, columns = "bath_number_"+col)
-
-    # binarize bedrooms
-    step1 = np.round(listings["bedrooms"], 0).astype(int)
-    step2 = np.where(step1 > 3, 4, step1).astype(str)
-    mlb = MultiLabelBinarizer()
-    am_array = mlb.fit_transform(step2)
-    col = mlb.classes_
-    col[-1] = "greater3"
-    bedrooms = pd.DataFrame(am_array, columns = "bedroom_number_"+col)
-
-    listings = pd.concat([listings, baths, bedrooms], axis = 1)
-    listings = listings.drop(["bath_number", "bedrooms"], axis = 1)
-
     return price, listings, reviews
 
 
@@ -405,6 +384,27 @@ from helpers import to_dummy_single, to_dummy
 def further():
     price, listings, reviews = impute()
 
+    # binarize baths
+    step1 = np.round(listings["bath_number"], 0).astype(int)
+    step2 = np.where(step1 > 3, 4, step1).astype(str)
+    mlb = MultiLabelBinarizer()
+    am_array = mlb.fit_transform(step2)
+    col = mlb.classes_
+    col[-1] = "greater3"
+    baths = pd.DataFrame(am_array, columns="bath_number_" + col)
+
+    # binarize bedrooms
+    step1 = np.round(listings["bedrooms"], 0).astype(int)
+    step2 = np.where(step1 > 3, 4, step1).astype(str)
+    mlb = MultiLabelBinarizer()
+    am_array = mlb.fit_transform(step2)
+    col = mlb.classes_
+    col[-1] = "greater3"
+    bedrooms = pd.DataFrame(am_array, columns="bedroom_number_" + col)
+
+    listings = pd.concat([listings, baths, bedrooms], axis=1)
+    listings = listings.drop(["bath_number", "bedrooms"], axis=1)
+
     # let's deal with the date columns and turn them into numbers which give the difference to the last_scraped date
     date_col = ["last_scraped", "host_since", "first_review", "last_review"]
     pd.to_datetime(listings["last_scraped"], yearfirst=True)
@@ -412,7 +412,7 @@ def further():
     listings["host_since"] = date_df["last_scraped"] - date_df["host_since"]
     listings["first_review"] = date_df["last_scraped"] - date_df["first_review"]
     listings["last_review"] = date_df["last_scraped"] - date_df["last_review"]
-    listings = listings.drop("last_scraped", axis = 1)
+    listings = listings.drop("last_scraped", axis=1)
     # We have a timedelta object in each cell now. We should convert it into an integer using its attribute .days
     date_col = date_col[1:]
     for i in date_col:
@@ -420,8 +420,6 @@ def further():
 
     # we have to create dummies for the categorical variables in order to use them for models like RandomForests, Ridge,...
     cat_col = ["neighbourhood_cleansed", "property_type", "room_type", "host_location_country", "bath_kind"]
-    for i in cat_col:
-        print(listings[i].value_counts())
 
     listings = to_dummy(listings, cat_col, cat_col)
 
@@ -431,5 +429,5 @@ def further():
 def load_data():
     price, listings, reviews = further()
 
-    print("....aaaaaaaand it's done.")
+    print("Have fun implementing your models.")
     return price, listings, reviews
