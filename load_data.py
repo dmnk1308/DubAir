@@ -10,7 +10,7 @@ from scipy.stats import halfnorm
 import warnings
 
 
-def load_data():
+def load():
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     url_reviews = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/reviews.csv.gz"
     listings = pd.read_csv(url_listing)
@@ -54,12 +54,15 @@ def load_data():
     price = price.str.replace("$","")
     price = price.str.replace(",","")
     price = price.astype(float)
+    price = pd.DataFrame(price)
+    price["log_price"] = np.log(price)
+    price["id"] = listings["id"]
+    price = price[["id", "price", "log_price"]]
 
     # get rid of Hotels
     hotel_filter = listings["room_type"] == "Hotel room"
     listings = listings[~hotel_filter]
     price = price[~hotel_filter]
-    
 
     listings = listings.filter(variables_listing)
     reviews = reviews.filter(["comments","date"])
@@ -68,8 +71,8 @@ def load_data():
 
 
 
-def load_data_cleansed():
-    price, listings, reviews = load_data()
+def clean():
+    price, listings, reviews = load()
 
 ############# CATEGORICAL VARIABLES #################
 
@@ -228,8 +231,8 @@ def load_data_cleansed():
     return price, listings, reviews
 
 
-def load_data_cleansed_imputed():
-    price, listings, reviews = load_data_cleansed()
+def impute():
+    price, listings, reviews = clean()
 
     print("Data is cleansed. Now start the imputation.")
 
@@ -393,8 +396,40 @@ def load_data_cleansed_imputed():
     listings = pd.concat([listings, baths, bedrooms], axis = 1)
     listings = listings.drop(["bath_number", "bedrooms"], axis = 1)
 
-
     return price, listings, reviews
 
 
+# Define functions used in further()
+from helpers import to_dummy_single, to_dummy
 
+def further():
+    price, listings, reviews = impute()
+
+    # let's deal with the date columns and turn them into numbers which give the difference to the last_scraped date
+    date_col = ["last_scraped", "host_since", "first_review", "last_review"]
+    pd.to_datetime(listings["last_scraped"], yearfirst=True)
+    date_df = listings.filter(date_col).apply(pd.to_datetime)
+    listings["host_since"] = date_df["last_scraped"] - date_df["host_since"]
+    listings["first_review"] = date_df["last_scraped"] - date_df["first_review"]
+    listings["last_review"] = date_df["last_scraped"] - date_df["last_review"]
+    listings = listings.drop("last_scraped", axis = 1)
+    # We have a timedelta object in each cell now. We should convert it into an integer using its attribute .days
+    date_col = date_col[1:]
+    for i in date_col:
+        listings[i] = pd.Series([j.days for j in list(listings[i])])
+
+    # we have to create dummies for the categorical variables in order to use them for models like RandomForests, Ridge,...
+    cat_col = ["neighbourhood_cleansed", "property_type", "room_type", "host_location_country", "bath_kind"]
+    for i in cat_col:
+        print(listings[i].value_counts())
+
+    listings = to_dummy(listings, cat_col, cat_col)
+
+    print("Further Modifications are done.")
+    return price, listings, reviews
+
+def load_data():
+    price, listings, reviews = further()
+
+    print("....aaaaaaaand it's done.")
+    return price, listings, reviews

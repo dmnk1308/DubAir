@@ -47,3 +47,23 @@ def add_col(df, sender, receiver, regex = True):
     df[receiver] = df.filter(sender).sum(axis=1)+df[receiver]
     df = df.drop(sender, axis = 1)
     return df
+
+# Let's define a function that sets up the dummies and drops the category column:
+def to_dummy_single(df, X, output_name):
+    dummies = pd.get_dummies(df[X])
+    dummies.columns = output_name + "_" + dummies.columns
+
+    if len(dummies.columns) == 2:
+        dummies = dummies[dummies.columns[0]]
+
+    df = df.join(dummies)
+    df = df.drop(X, axis=1)
+
+    return df
+
+
+def to_dummy(df, X_list, output_names):
+    for i in range(len(X_list)):
+        df = to_dummy_single(df, X_list[i], output_names[i])
+
+    return df
