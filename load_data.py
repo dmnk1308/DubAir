@@ -15,7 +15,7 @@ def load():
     url_reviews = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/reviews.csv.gz"
     listings = pd.read_csv(url_listing)
     reviews = pd.read_csv(url_reviews)
-    variables_listing= ["name", "last_scraped", "description", "neighborhood_overview", "host_id", "host_url", "host_name", "host_since", "host_location",
+    variables_listing= ["id", "name", "last_scraped", "description", "neighborhood_overview", "host_id", "host_url", "host_name", "host_since", "host_location",
     "host_about", "host_is_superhost", "host_listings_count", "host_has_profile_picture","host_identity_verified",
     "neighbourhood_cleansed",
     "latitude",
@@ -426,8 +426,20 @@ def further():
     print("Further Modifications are done.")
     return price, listings, reviews
 
-def load_data():
+def load_data(image_data = True, drop_id = True):
     price, listings, reviews = further()
+
+    if image_data:
+        img_df = pd.read_csv("data/img_counts_brightness.csv")
+        img_df = img_df.drop(img_df.columns[0], axis = 1)
+        means = img_df.mean(axis = 0)
+        mean_brightness = means[2]
+        listings = listings.merge(img_df, how = "left", on = "id")
+        listings["counts"] = listings["counts"].fillna(0)
+        listings["brightness"] = listings["brightness"].fillna(mean_brightness)
+
+    if drop_id:
+        listings = listings.drop("id", axis = 1)
 
     print("Have fun implementing your models.")
     return price, listings, reviews
