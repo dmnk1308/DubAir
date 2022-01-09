@@ -1,5 +1,6 @@
 import pandas as pd 
 import numpy as np
+from re import sub
 
 # turns all columns (in_cat) into one column (out_cat)
 def in_one(df, in_cat, out_cat_name, regex = True, sum = False, drop = True):
@@ -67,3 +68,27 @@ def to_dummy(df, X_list, output_names):
         df = to_dummy_single(df, X_list[i], output_names[i])
 
     return df
+
+
+def clean_comments(text):
+    ''' Pre process and convert texts to a list of words
+    method inspired by method from eliorc github repo: https://github.com/eliorc/Medium/blob/master/MaLSTM.ipynb'''
+    text = str(text)
+    text = text.lower()
+
+    # Clean the text
+    text = sub(r"[^A-Za-z0-9^,!?.\/'+]", " ", text)
+    text = sub(r"\+", " plus ", text)
+    text = sub(r",", " ", text)
+    text = sub(r"\.", " ", text)
+    text = sub(r"!", " ! ", text)
+    text = sub(r"\?", " ? ", text)
+    text = sub(r"'", " ", text)
+    text = sub(r":", " : ", text)
+    text = sub(r"\s{2,}", " ", text)
+    text = sub(r"\s+$", "", text)
+
+    # they were weird
+    text = text.replace("br/", "")
+
+    return text

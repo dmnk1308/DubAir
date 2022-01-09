@@ -65,7 +65,7 @@ def load():
     price = price[~hotel_filter]
 
     listings = listings.filter(variables_listing)
-    reviews = reviews.filter(["comments","date"])
+    reviews = reviews.filter(["listing_id", "comments", "date"])
 
     print("Data loaded.")
 
@@ -426,8 +426,49 @@ def further():
     print("Further Modifications are done.")
     return price, listings, reviews
 
-def load_data(image_data = True, drop_id = True):
+def string_data():
     price, listings, reviews = further()
+
+    listings_reviews = pd.read_csv("text_data/listings_reviews.csv")
+    listings_reviews = listings_reviews.drop(listings_reviews.columns[0], axis=1)
+    listings_reviews.rename(columns={'listing_id': 'id'}, inplace=True)
+    host_sent = pd.read_csv("text_data/host_sent.csv")
+    host_sent = host_sent.drop(host_sent.columns[0], axis=1)
+    where_df_cult = pd.read_csv("text_data/host_name.csv")
+    where_df_cult = where_df_cult.drop(where_df_cult.columns[0], axis=1)
+
+    text_col = ["name", "host_name", "description", "neighborhood_overview", "host_about"]
+    listings = listings.drop(text_col, axis=1)
+
+    listings = pd.merge(listings, host_sent, on="id", how="left")
+    listings = pd.concat([listings, where_df_cult], axis=1)
+    listings = pd.merge(listings, listings_reviews, on="id", how="left")
+
+    # Imputations
+    listings["english_review"].fillna(np.nanmean(listings["english_review"]), inplace=True)
+    listings["compound"].fillna(0, inplace=True)
+    listings["negativity"].fillna(0, inplace=True)
+    listings["neutrality"].fillna(1, inplace=True)
+    listings["positivity"].fillna(0, inplace=True)
+    listings["review_length"].fillna(0, inplace=True)
+    listings["polarity"].fillna(0, inplace=True)
+    listings["subjectivity"].fillna(0, inplace=True)
+    listings["weight_polar"].fillna(0, inplace=True)
+    listings["negative_comp"].fillna(0, inplace=True)
+    listings["most_negative"].fillna(0, inplace=True)
+    listings["smallest_polarity"].fillna(0, inplace=True)
+    listings["most_positive"].fillna(0, inplace=True)
+    listings["highest_polarity"].fillna(0, inplace=True)
+    listings["sum_of_english_review"].fillna(0, inplace=True)
+    listings["sum_of_compound"].fillna(0, inplace=True)
+    listings["sum_of_negativity"].fillna(0, inplace=True)
+    listings["sum_of_negative_comp"].fillna(0, inplace=True)
+
+    print("Text Data generated.")
+    return price, listings, reviews
+
+def load_data(image_data = True, drop_id = True):
+    price, listings, reviews = string_data()
 
     if image_data:
         img_df = pd.read_csv("data/img_counts_brightness.csv")
