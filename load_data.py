@@ -471,7 +471,7 @@ def load_data(image_data = True, drop_id = True):
     price, listings, reviews = string_data()
 
     if image_data:
-        img_df = pd.read_csv("data/img_counts_brightness.csv")
+        img_df = pd.read_csv("data/img_info.csv")
         img_df = img_df.drop(img_df.columns[0], axis = 1)
         means = img_df.mean(axis = 0)
         mean_brightness = means[2]

@@ -1,4 +1,15 @@
 
 .DS_Store
-data
+data/image_collage
+data/images
+data/images_resized
+data/tfrecord_collage
+data/tfrecord_id_first
+data/tfrecord_labeled
+data/tfrecord_labeled_small
+data/tfrecord_unlabeled
+
+
+
+
 logs
