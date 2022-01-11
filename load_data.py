@@ -476,8 +476,10 @@ def load_data(image_data = True, drop_id = True):
         means = img_df.mean(axis = 0)
         mean_brightness = means[2]
         listings = listings.merge(img_df, how = "left", on = "id")
-        listings["counts"] = listings["counts"].fillna(0)
+        room_cols = ["no_img_balcony","no_img_bathroom","no_img_bedroom","no_img_dining","no_img_hallway","no_img_kitchen","no_img_living","no_img_others"]
+        listings["count"] = listings["count"].fillna(0)
         listings["brightness"] = listings["brightness"].fillna(mean_brightness)
+        listings[room_cols] = listings[room_cols].fillna(0)
 
     if drop_id:
         listings = listings.drop("id", axis = 1)
