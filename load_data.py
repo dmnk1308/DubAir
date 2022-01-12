@@ -437,9 +437,6 @@ def string_data():
     where_df_cult = pd.read_csv("text_data/host_name.csv")
     where_df_cult = where_df_cult.drop(where_df_cult.columns[0], axis=1)
 
-    text_col = ["name", "host_name", "description", "neighborhood_overview", "host_about"]
-    listings = listings.drop(text_col, axis=1)
-
     listings = pd.merge(listings, host_sent, on="id", how="left")
     listings = pd.concat([listings, where_df_cult], axis=1)
     listings = pd.merge(listings, listings_reviews, on="id", how="left")
@@ -463,6 +460,9 @@ def string_data():
     listings["sum_of_compound"].fillna(0, inplace=True)
     listings["sum_of_negativity"].fillna(0, inplace=True)
     listings["sum_of_negative_comp"].fillna(0, inplace=True)
+
+    text_col = ["name_x", "name_y", 'descr', 'neigh_over', 'host_ab', "host_name", "description", "neighborhood_overview", "host_about"]
+    listings = listings.drop(text_col, axis=1)
 
     print("Text Data generated.")
     return price, listings, reviews
