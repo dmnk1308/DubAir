@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MultiLabelBinarizer
-from helpers import in_one, drop_col, add_col
+from helpers import in_one, drop_col
 import ast
 import requests
 from bs4 import BeautifulSoup as bs
@@ -468,6 +468,9 @@ def string_data():
     return price, listings, reviews
 
 def load_data(image_data = True, drop_id = True):
+    print('-'*30)
+    print('Loading data...')
+    print('-'*30)
     price, listings, reviews = string_data()
 
     if image_data:
@@ -486,3 +489,9 @@ def load_data(image_data = True, drop_id = True):
 
     print("Have fun implementing your models.")
     return price, listings, reviews
+
+
+def load_seleted_data():
+    print('-'*30)
+    print('Selecting Features data...')
+    print('-'*30)
