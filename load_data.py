@@ -473,6 +473,11 @@ def load_data(image_data = True, drop_id = True):
     print('-'*30)
     price, listings, reviews = string_data()
 
+    listings_osm = pd.read_csv("StreetData.csv")
+    listings_osm = listings_osm.drop(listings_osm.columns[0], axis=1)
+    listings = pd.concat([listings, listings_osm], axis=1)
+    print("Street Data loaded.")
+
     if image_data:
         img_df = pd.read_csv("data/img_info.csv")
         img_df = img_df.drop(img_df.columns[0], axis = 1)
@@ -483,6 +488,7 @@ def load_data(image_data = True, drop_id = True):
         listings["count"] = listings["count"].fillna(0)
         listings["brightness"] = listings["brightness"].fillna(mean_brightness)
         listings[room_cols] = listings[room_cols].fillna(0)
+        print("Image data loaded.")
 
     if drop_id:
         listings = listings.drop("id", axis = 1)
