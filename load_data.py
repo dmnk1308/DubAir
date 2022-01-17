@@ -480,13 +480,16 @@ def load_data(image_data = True, drop_id = True):
 
     if image_data:
         img_df = pd.read_csv("data/img_info.csv")
-        img_df = img_df.drop(img_df.columns[0], axis = 1)
         means = img_df.mean(axis = 0)
         mean_brightness = means[2]
+        mean_contrast= means[3]
+
         listings = listings.merge(img_df, how = "left", on = "id")
-        room_cols = ["no_img_balcony","no_img_bathroom","no_img_bedroom","no_img_dining","no_img_hallway","no_img_kitchen","no_img_living","no_img_others"]
+        room_cols = ["no_img_bathroom","no_img_bedroom","no_img_hallway","no_img_kitchen","no_img_living","no_img_others"]
         listings["count"] = listings["count"].fillna(0)
-        listings["brightness"] = listings["brightness"].fillna(mean_brightness)
+        listings["brightness"] = listings["brightness"].fillna(mean_brightness)        
+        listings["contrast"] = listings["contrast"].fillna(mean_contrast)
+
         listings[room_cols] = listings[room_cols].fillna(0)
         print("Image data loaded.")
 
