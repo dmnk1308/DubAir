@@ -3,6 +3,11 @@ import numpy as np
 import pandas as pd
 import cv2 
 import tensorflow as tf
+from tensorflow import keras
+from keras.constraints import maxnorm
+import itertools
+import io
+from sklearn import metrics
 from skimage.transform import resize
 from sklearn.preprocessing import LabelEncoder
 from tqdm import tqdm
@@ -184,3 +189,119 @@ def show_category(cat, df, n = 10, folder = "data/images_resized/"):
         print(lab)
         plt.imshow(img)
         plt.show()
+
+
+
+######################## MODEL ############################
+
+def cm_cb(model, val_dataset, label_book, logdir):
+  file_writer_cm = tf.summary.create_file_writer(logdir + '/cm')
+
+  def log_confusion_matrix(epoch, logs):
+  # Use the model to predict the values from the validation dataset.
+    test_images = np.concatenate([x["input_1"] for x, y in val_dataset], axis=0)
+    test_labels = np.concatenate([y for x, y in val_dataset], axis=0)
+
+    test_pred_raw = model.predict(test_images)
+    test_pred = np.argmax(test_pred_raw, axis=1)
+
+    # Calculate the confusion matrix.
+    cm = metrics.confusion_matrix(test_labels, test_pred)
+    # Log the confusion matrix as an image summary.
+    figure = plot_confusion_matrix(cm, class_names=label_book["label"])
+    cm_image = plot_to_image(figure)
+
+    # Log the confusion matrix as an image summary.
+    with file_writer_cm.as_default():
+        tf.summary.image("Confusion Matrix", cm_image, step=epoch)
+
+
+  def plot_to_image(figure):
+    """Converts the matplotlib plot specified by 'figure' to a PNG image and
+    returns it. The supplied figure is closed and inaccessible after this call."""
+    # Save the plot to a PNG in memory.
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    # Closing the figure prevents it from being displayed directly inside
+    # the notebook.
+    plt.close(figure)
+    buf.seek(0)
+    # Convert PNG buffer to TF image
+    image = tf.image.decode_png(buf.getvalue(), channels=4)
+    # Add the batch dimension
+    image = tf.expand_dims(image, 0)
+    return image
+
+  def plot_confusion_matrix(cm, class_names):
+    """
+    Returns a matplotlib figure containing the plotted confusion matrix.
+
+    Args:
+      cm (array, shape = [n, n]): a confusion matrix of integer classes
+      class_names (array, shape = [n]): String names of the integer classes
+    """
+    figure = plt.figure(figsize=(8, 8))
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title("Confusion matrix")
+    plt.colorbar()
+    tick_marks = np.arange(len(class_names))
+    plt.xticks(tick_marks, class_names, rotation=45)
+    plt.yticks(tick_marks, class_names)
+
+    # Compute the labels from the normalized confusion matrix.
+    labels = np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2)
+
+    # Use white text if squares are dark; otherwise black.
+    threshold = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+      color = "white" if cm[i, j] > threshold else "black"
+      plt.text(j, i, labels[i, j], horizontalalignment="center", color=color)
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    return figure
+  cm_callback = keras.callbacks.LambdaCallback(on_epoch_end=log_confusion_matrix)
+  return cm_callback
+
+def train_model(traindata, valdata, lr, epochs, logdir,  label_book, weights, callbacks = []):
+   
+    # Define Input
+    inputs = tf.keras.layers.Input(shape = (256, 256, 3), name = "input_1")
+
+    # Load ResNet with pretrained Imagenet weights
+    resnet = tf.keras.applications.resnet.ResNet101(include_top=False, weights='imagenet', input_tensor=inputs, pooling="avg")
+
+    # freeze the weights
+    resnet.trainable = False
+    outputs = keras.layers.BatchNormalization()(resnet.output)
+
+    # Layer 1 - Flatten
+    outputs = tf.keras.layers.Flatten()(outputs)
+    #outputs = keras.layers.Dropout(.2)(outputs)
+    # Layer 2 - Dense ReLu
+    outputs = tf.keras.layers.Dense(1500, activation = "relu")(outputs)#, kernel_constraint=maxnorm(4))(outputs)
+    # Layer 3 - Dense ReLu 
+    #outputs = keras.layers.Dropout(.2)(outputs)
+    outputs = keras.layers.BatchNormalization()(outputs)
+    outputs = tf.keras.layers.Dense(500, activation = "relu")(outputs)#, kernel_constraint=maxnorm(4))(outputs)
+    # Layer 4 - Dense Output 
+    #outputs = keras.layers.Dropout(.2)(outputs)
+    outputs = keras.layers.BatchNormalization()(outputs)
+    outputs = tf.keras.layers.Dense(6)(outputs)
+
+    # Combine pretrained and output model
+    model = tf.keras.Model(inputs, outputs)
+
+    cm_callback = cm_cb(model, val_dataset = valdata, logdir = logdir, label_book = label_book)
+    tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
+    callbacks.append(tensorboard_callback)
+    callbacks.append(cm_callback)
+
+    model.compile(optimizer=tf.keras.optimizers.Adam(lr = lr),
+                loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                metrics=["accuracy"])
+
+    model.fit(traindata, validation_data = valdata, epochs = epochs, callbacks = callbacks, class_weight = weights)
+    return model
+
