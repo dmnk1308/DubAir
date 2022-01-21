@@ -1,6 +1,8 @@
 import pandas as pd 
 import numpy as np
 from re import sub
+from scipy.stats import ttest_ind
+from scipy.stats import kruskal
 
 # turns all columns (in_cat) into one column (out_cat)
 def in_one(df, in_cat, out_cat_name, regex = True, sum = False, drop = True):
@@ -92,3 +94,32 @@ def clean_comments(text):
     text = text.replace("br/", "")
 
     return text
+
+
+def t_Test(X, y, stats, p_val, names):
+    catg = pd.unique(X)
+    catg_filter = (X == catg[0])
+    sample1 = y[catg_filter]
+    sample2 = y[~catg_filter]
+    
+    t, p = ttest_ind(sample1, sample2, equal_var = False)
+    name = X.name
+
+    stats.append(t)
+    p_val.append(p)
+    names.append(name)
+
+
+    return t, p
+
+def krus_test(X, y, stats, p_val, names):
+    c_list = pd.unique(X)
+
+    F, p = kruskal(*[list(y[X == i]) for i in c_list])
+    name = X.name
+
+    stats.append(F)
+    p_val.append(p)
+    names.append(name)
+
+    return F, p

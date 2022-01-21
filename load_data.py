@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MultiLabelBinarizer
-from helpers import in_one, drop_col
+from helpers import *
 import ast
 import requests
 from bs4 import BeautifulSoup as bs
@@ -426,70 +426,67 @@ def further():
     print("Further Modifications are done.")
     return price, listings, reviews
 
-def string_data():
+def string_osm_data():
     price, listings, reviews = further()
 
+    # lengths of text columns
+    listings["name_length"] = listings["name"].apply(lambda x: len(x))
+    listings["description_length"] = listings["description"].apply(lambda x: len(x))
+    listings["neighborhood_overview_length"] = listings["neighborhood_overview"].apply(lambda x: len(x))
+    listings["host_about_length"] = listings["host_about"].apply(lambda x: len(x))
+
+    # read in pre-created frames
     listings_reviews = pd.read_csv("text_data/listings_reviews.csv")
-    listings_reviews = listings_reviews.drop(listings_reviews.columns[0], axis=1)
-    listings_reviews.rename(columns={'listing_id': 'id'}, inplace=True)
     host_sent = pd.read_csv("text_data/host_sent.csv")
+    host_name = pd.read_csv("text_data/host_name.csv")
+    listings_reviews = listings_reviews.drop(listings_reviews.columns[0], axis=1)
     host_sent = host_sent.drop(host_sent.columns[0], axis=1)
-    where_df_cult = pd.read_csv("text_data/host_name.csv")
-    where_df_cult = where_df_cult.drop(where_df_cult.columns[0], axis=1)
+    host_name = host_name.drop(host_name.columns[0], axis=1)
 
-    listings = pd.merge(listings, host_sent, on="id", how="left")
-    listings = pd.concat([listings, where_df_cult], axis=1)
+    # add to listings
     listings = pd.merge(listings, listings_reviews, on="id", how="left")
+    listings = pd.merge(listings, host_sent, on="id", how="left")
+    listings = pd.concat([listings, host_name], axis=1)
 
-    # Imputations
-    listings["english_review"].fillna(np.nanmean(listings["english_review"]), inplace=True)
-    listings["compound"].fillna(0, inplace=True)
-    listings["negativity"].fillna(0, inplace=True)
-    listings["neutrality"].fillna(1, inplace=True)
-    listings["positivity"].fillna(0, inplace=True)
-    listings["review_length"].fillna(0, inplace=True)
-    listings["polarity"].fillna(0, inplace=True)
-    listings["subjectivity"].fillna(0, inplace=True)
-    listings["weight_polar"].fillna(0, inplace=True)
-    listings["negative_comp"].fillna(0, inplace=True)
-    listings["most_negative"].fillna(0, inplace=True)
-    listings["smallest_polarity"].fillna(0, inplace=True)
-    listings["most_positive"].fillna(0, inplace=True)
-    listings["highest_polarity"].fillna(0, inplace=True)
-    listings["sum_of_english_review"].fillna(0, inplace=True)
-    listings["sum_of_compound"].fillna(0, inplace=True)
-    listings["sum_of_negativity"].fillna(0, inplace=True)
-    listings["sum_of_negative_comp"].fillna(0, inplace=True)
+    # drop text columns
+    listings = listings.drop(["name", "description", "neighborhood_overview", "host_name", "host_about"], axis = 1)
 
-    text_col = ["name_x", "name_y", 'descr', 'neigh_over', 'host_ab', "host_name", "description", "neighborhood_overview", "host_about"]
-    listings = listings.drop(text_col, axis=1)
+    # Imputation, means
+    listings["prop_of_eng_reviews"].fillna(listings["prop_of_eng_reviews"].mean(), inplace=True)
+    listings["mean_compound"].fillna(listings["mean_compound"].mean(), inplace=True)
+    listings["mean_negativity"].fillna(listings["mean_negativity"].mean(), inplace=True)
+    listings["mean_neutrality"].fillna(listings["mean_neutrality"].mean(), inplace=True)
+    listings["mean_positivity"].fillna(listings["mean_positivity"].mean(), inplace=True)
+    listings["mean_review_length"].fillna(listings["mean_review_length"].mean(), inplace=True)
+    listings["prop_of_neg_comp"].fillna(listings["prop_of_neg_comp"].mean(), inplace=True)
+    listings["most_neg_compound"].fillna(listings["most_neg_compound"].mean(), inplace=True)
+    listings["most_pos_compound"].fillna(listings["most_pos_compound"].mean(), inplace=True)
 
-    print("Text Data generated.")
+    # OSM
+    listings_osm = pd.read_csv("StreetData.csv")
+    listings_osm = listings_osm.drop(listings_osm.columns[0], axis=1)
+
+    listings = pd.merge(listings, listings_osm, on="id", how="left")
+
+    print("Text and Open Street Data generated.")
+
     return price, listings, reviews
 
-def load_data(image_data = True, drop_id = True):
+def load_data(image_data = False, drop_id = True):
     print('-'*30)
     print('Loading data...')
     print('-'*30)
-    price, listings, reviews = string_data()
-
-    listings_osm = pd.read_csv("StreetData.csv")
-    listings_osm = listings_osm.drop(listings_osm.columns[0], axis=1)
-    listings = pd.concat([listings, listings_osm], axis=1)
-    print("Street Data loaded.")
+    price, listings, reviews = string_osm_data()
 
     if image_data:
         img_df = pd.read_csv("data/img_info.csv")
+        #img_df = img_df.drop(img_df.columns[0], axis = 1)
         means = img_df.mean(axis = 0)
         mean_brightness = means[2]
-        mean_contrast= means[3]
-
         listings = listings.merge(img_df, how = "left", on = "id")
-        room_cols = ["no_img_bathroom","no_img_bedroom","no_img_hallway","no_img_kitchen","no_img_dining","no_img_living","no_img_others"]
+        room_cols = ["no_img_bathroom","no_img_bedroom","no_img_dining","no_img_hallway","no_img_kitchen","no_img_living","no_img_others"] #"no_img_balcony",
         listings["count"] = listings["count"].fillna(0)
-        listings["brightness"] = listings["brightness"].fillna(mean_brightness)        
-        listings["contrast"] = listings["contrast"].fillna(mean_contrast)
-
+        listings["brightness"] = listings["brightness"].fillna(mean_brightness)
         listings[room_cols] = listings[room_cols].fillna(0)
         print("Image data loaded.")
 
@@ -500,7 +497,68 @@ def load_data(image_data = True, drop_id = True):
     return price, listings, reviews
 
 
-def load_seleted_data():
+def load_selected_data():
     print('-'*30)
     print('Selecting Features data...')
     print('-'*30)
+
+    price, listings, reviews = load_data(image_data = True, drop_id = True)
+
+    # t-tests
+
+    # get binary variables
+    bin_col = [col for col in listings if np.isin(listings[col].unique(), [0, 1]).all()]
+
+    stats_val = []
+    p_val = []
+    names = []
+
+    p = price["log_price"].reset_index()["log_price"]
+    for i in bin_col:
+        t_Test(listings[i], p, stats_val, p_val, names)
+    
+    p_val_sig = []
+    for x in p_val:
+        p_val_sig.append(x < 0.05)
+    
+    insig = [x for x, y in zip(names, p_val_sig) if y == False]
+
+    if len(insig) > 0:
+        listings = listings.drop(insig, axis = 1)
+
+    # F-Tests
+    def is_cat(col_df):
+        ints = all(col_df % 1 == 0)
+        lengths = 2 < len(col_df.unique()) < 6
+        if ints & lengths:
+           r = True
+        else:
+            r = False
+
+        return r
+    
+    cats_check = []
+    for i in range(listings.shape[1]):
+        cats_check.append(is_cat(listings.iloc[:, i]))
+    
+    cat_col = listings.columns[cats_check]
+
+    stats_val = []
+    p_val = []
+    names = []
+
+    for i in cat_col:
+        t_Test(listings[i], p, stats_val, p_val, names)
+    
+    p_val_sig = []
+    for x in p_val:
+        p_val_sig.append(x < 0.05)
+
+    insig = [x for x, y in zip(names, p_val_sig) if y == False]
+
+    if len(insig) > 0:
+        listings = listings.drop(insig, axis = 1)
+
+    print("Dropped insignificant variables due to t- and F-tests.")
+
+    return price, listings, reviews
