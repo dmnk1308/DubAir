@@ -48,7 +48,17 @@ def load():
     "review_scores_value",
     "instant_bookable",
     "calculated_host_listings_count",
-    "reviews_per_month"] 
+    "reviews_per_month",
+    "host_has_profile_pic",
+    'minimum_minimum_nights', 
+	'maximum_minimum_nights', 
+	'minimum_maximum_nights', 
+	'maximum_maximum_nights', 
+	'minimum_nights_avg_ntm', 
+	'maximum_nights_avg_ntm',
+	'calculated_host_listings_count_entire_homes', 
+	'calculated_host_listings_count_private_rooms', 
+    'calculated_host_listings_count_shared_rooms'] 
     # make price numeric
     price = listings["price"]
     price = price.str.replace("$","")
@@ -77,6 +87,9 @@ def clean():
     price, listings, reviews = load()
 
 ############# CATEGORICAL VARIABLES #################
+
+    # clean host_profile_pic
+    listings["host_has_profile_pic"] = np.where(listings["host_has_profile_pic"] == "t", 1, 0)
 
     # clean host_location
     country_abr = pd.read_csv("https://gist.githubusercontent.com/radcliff/f09c0f88344a7fcef373/raw/2753c482ad091c54b1822288ad2e4811c021d8ec/wikipedia-iso-country-codes.csv")
@@ -200,7 +213,6 @@ def clean():
     am_df = in_one(am_df, "(^Children’s books and toys)", "Children_Entertainment", regex = True, sum = False, drop = True)
     am_df = in_one(am_df, "(^Dedicated workspace)", "Workspace", regex = True, sum = False, drop = True)
     am_df = in_one(am_df, "(conditioner)|(shampoo)", "Shampoo_Conditioner_available", regex = True, sum = False, drop = True)
-    am_df = in_one(am_df, "(^Fast wifi.)", "Fast_wifi_available", regex = True, sum = False, drop = True)
     am_df = in_one(am_df, "(^Gym)|(. gym)", "Gym_available", regex = True, sum = False, drop = True)
     am_df = in_one(am_df, "(coffee machine)|(Nespresso)|(^Coffee maker)", "Coffee_machine_available", regex = True, sum = False, drop = True)
     am_df = in_one(am_df, "(^Dryer)|(Paid dryer)|(^Free dryer)", "Dryer_available", regex = True, sum = False, drop = True)
@@ -354,7 +366,7 @@ def impute():
                 'Refridgerator_available', 'Body_soap_available',
                 'Garden_backyard_available', 'Free_parking',
                 'Paid_parking', 'Children_Entertainment', 'Workspace',
-                'Shampoo_Conditioner_available', 'Fast_wifi_available', 'Gym_available',
+                'Shampoo_Conditioner_available', 'Gym_available',
                 'Coffee_machine_available', 'Dryer_available', 'Washer_available',
                 'Hot_tub_available', 'Pool_available', 'Patio_balcony_available',
                 'Wifi_available', 'AC_available', 'heating_available',
@@ -483,10 +495,12 @@ def load_data(image_data = False, drop_id = True):
         #img_df = img_df.drop(img_df.columns[0], axis = 1)
         means = img_df.mean(axis = 0)
         mean_brightness = means[2]
+        mean_contrast = means[3]
         listings = listings.merge(img_df, how = "left", on = "id")
         room_cols = ["no_img_bathroom","no_img_bedroom","no_img_dining","no_img_hallway","no_img_kitchen","no_img_living","no_img_others"] #"no_img_balcony",
         listings["count"] = listings["count"].fillna(0)
         listings["brightness"] = listings["brightness"].fillna(mean_brightness)
+        listings["contrast"] = listings["contrast"].fillna(mean_contrast)
         listings[room_cols] = listings[room_cols].fillna(0)
         print("Image data loaded.")
 
@@ -529,38 +543,38 @@ def load_selected_data():
         listings = listings.drop(insig, axis = 1)
 
     # F-Tests
-    def is_cat(col_df):
-        ints = all(col_df % 1 == 0)
-        lengths = 2 < len(col_df.unique()) < 6
-        if ints & lengths:
-           r = True
-        else:
-            r = False
+    # def is_cat(col_df):
+    #     ints = all(col_df % 1 == 0)
+    #     lengths = 2 < len(col_df.unique()) < 6
+    #     if ints & lengths:
+    #        r = True
+    #     else:
+    #         r = False
 
-        return r
+    #     return r
     
-    cats_check = []
-    for i in range(listings.shape[1]):
-        cats_check.append(is_cat(listings.iloc[:, i]))
+    # cats_check = []
+    # for i in range(listings.shape[1]):
+    #     cats_check.append(is_cat(listings.iloc[:, i]))
     
-    cat_col = listings.columns[cats_check]
+    # cat_col = listings.columns[cats_check]
 
-    stats_val = []
-    p_val = []
-    names = []
+    # stats_val = []
+    # p_val = []
+    # names = []
 
-    for i in cat_col:
-        krus_test(listings[i], p, stats_val, p_val, names)
+    # for i in cat_col:
+    #     krus_test(listings[i], p, stats_val, p_val, names)
     
-    p_val_sig = []
-    for x in p_val:
-        p_val_sig.append(x < 0.05)
+    # p_val_sig = []
+    # for x in p_val:
+    #     p_val_sig.append(x < 0.05)
 
-    insig = [x for x, y in zip(names, p_val_sig) if y == False]
-    print("Due to insignificant t-tests we dropped:")
-    print(insig)
+    # insig = [x for x, y in zip(names, p_val_sig) if y == False]
+    # print("Due to insignificant t-tests we dropped:")
+    # print(insig)
 
-    if len(insig) > 0:
-        listings = listings.drop(insig, axis = 1)
+    # if len(insig) > 0:
+    #     listings = listings.drop(insig, axis = 1)
 
     return price, listings, reviews
