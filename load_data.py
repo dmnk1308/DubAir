@@ -522,6 +522,8 @@ def load_selected_data():
         p_val_sig.append(x < 0.05)
     
     insig = [x for x, y in zip(names, p_val_sig) if y == False]
+    print("Due to insignificant t-tests we dropped:")
+    print(insig)
 
     if len(insig) > 0:
         listings = listings.drop(insig, axis = 1)
@@ -548,17 +550,17 @@ def load_selected_data():
     names = []
 
     for i in cat_col:
-        t_Test(listings[i], p, stats_val, p_val, names)
+        krus_test(listings[i], p, stats_val, p_val, names)
     
     p_val_sig = []
     for x in p_val:
         p_val_sig.append(x < 0.05)
 
     insig = [x for x, y in zip(names, p_val_sig) if y == False]
+    print("Due to insignificant t-tests we dropped:")
+    print(insig)
 
     if len(insig) > 0:
         listings = listings.drop(insig, axis = 1)
-
-    print("Dropped insignificant variables due to t- and F-tests.")
 
     return price, listings, reviews
