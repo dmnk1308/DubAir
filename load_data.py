@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.feature_selection import VarianceThreshold
 from helpers import *
 import ast
 import requests
@@ -8,6 +9,13 @@ from bs4 import BeautifulSoup as bs
 import statsmodels.api as sm
 from scipy.stats import halfnorm
 import warnings
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from scipy import stats
+import matplotlib.pyplot as plt
+from scipy.cluster import hierarchy
+from scipy.spatial.distance import squareform
+
 
 
 def load():
@@ -484,39 +492,34 @@ def string_osm_data():
 
     return price, listings, reviews
 
-def load_data(image_data = False, drop_id = True):
+def load_img_data():
     print('-'*30)
     print('Loading data...')
     print('-'*30)
     price, listings, reviews = string_osm_data()
 
-    if image_data:
-        img_df = pd.read_csv("data/img_info.csv")
-        #img_df = img_df.drop(img_df.columns[0], axis = 1)
-        means = img_df.mean(axis = 0)
-        mean_brightness = means[2]
-        mean_contrast = means[3]
-        listings = listings.merge(img_df, how = "left", on = "id")
-        room_cols = ["no_img_bathroom","no_img_bedroom","no_img_dining","no_img_hallway","no_img_kitchen","no_img_living","no_img_others"] #"no_img_balcony",
-        listings["count"] = listings["count"].fillna(0)
-        listings["brightness"] = listings["brightness"].fillna(mean_brightness)
-        listings["contrast"] = listings["contrast"].fillna(mean_contrast)
-        listings[room_cols] = listings[room_cols].fillna(0)
-        print("Image data loaded.")
+    img_df = pd.read_csv("data/img_info.csv")
+    #img_df = img_df.drop(img_df.columns[0], axis = 1)
+    means = img_df.mean(axis = 0)
+    mean_brightness = means[2]
+    mean_contrast = means[3]
+    listings = listings.merge(img_df, how = "left", on = "id")
+    room_cols = ["no_img_bathroom","no_img_bedroom","no_img_dining","no_img_hallway","no_img_kitchen","no_img_living","no_img_others"] #"no_img_balcony",
+    listings["count"] = listings["count"].fillna(0)
+    listings["brightness"] = listings["brightness"].fillna(mean_brightness)
+    listings["contrast"] = listings["contrast"].fillna(mean_contrast)
+    listings[room_cols] = listings[room_cols].fillna(0)
+    print("Image data loaded.")
 
-    if drop_id:
-        listings = listings.drop("id", axis = 1)
-
-    print("Have fun implementing your models.")
     return price, listings, reviews
 
 
-def load_selected_data():
+def selection():
     print('-'*30)
     print('Selecting Features data...')
     print('-'*30)
 
-    price, listings, reviews = load_data(image_data = True, drop_id = True)
+    price, listings, reviews = load_img_data()
 
     # t-tests
 
@@ -571,10 +574,219 @@ def load_selected_data():
     #     p_val_sig.append(x < 0.05)
 
     # insig = [x for x, y in zip(names, p_val_sig) if y == False]
-    # print("Due to insignificant t-tests we dropped:")
+    # print("Due to insignificant F-tests we dropped:")
     # print(insig)
 
     # if len(insig) > 0:
     #     listings = listings.drop(insig, axis = 1)
 
+    ## Variance Threshold Selection ####
+    
+    bin_col = [col for col in listings if np.isin(listings[col].unique(), [0, 1]).all()]
+    num_col = [col for col in listings if ~np.isin(listings[col].unique(), [0, 1]).all()]
+
+    scaler = StandardScaler()
+    scaler.fit(listings[num_col])
+    stand_values = scaler.transform(listings[num_col])
+    listings[num_col] = stand_values
+
+    numerical_df = listings.filter(num_col)
+    sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
+    sel.feature_names_in_ = numerical_df.columns
+    sel.fit_transform(numerical_df)
+    num_col = sel.get_feature_names_out()
+    print(str(len(numerical_df.columns) - len(num_col)) + " numerical variables have been removed due to same variance.")
+    print
+    numerical_df = numerical_df.filter(num_col)
+
+
+    binary_df = listings.filter(bin_col)
+    sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
+    sel.feature_names_in_ = binary_df.columns
+    sel.fit_transform(binary_df)
+    binary_col = sel.get_feature_names_out()
+    print(str(len(binary_df.columns) - len(binary_col)) + " binary variables have been removed due to same variance.")
+    binary_df = binary_df.filter(binary_col)
+
+    all_col = list(binary_col) + list(num_col)
+    listings = listings.filter(all_col)
+
+
+    #########
+    # PCAs and dropping the ones ###
+    #########
+    # PCA for city-life
+    city_life = ["nightclubs", "sex_amenities", "bicycle_rentals", "casinos", "university", 
+                "theatres_artscentre", "library", "taxi", "fast_foods", "restaurants", "bars",
+                "cafes", "malls", "cinemas", "supermarkets", "bus_train_tram_station"]
+                
+    city_life_df = listings[city_life]
+    listings["city_life_pca"] = PCA(n_components = 1).fit_transform(city_life_df)
+    listings = drop_col(listings, city_life, regex = False)
+
+    # PCA for touristic and travel
+    travel_touristic = ["neighbourhood_cleansed_Dublin City", "in_city", "nearest_sight", "mean_dist_sight", "2nd_nearest_sight",
+                        "3rd_nearest_sight", "nearest_travel_poss", "mean_dist_travel"]
+
+    travel_touristic_df = listings[travel_touristic]
+
+    listings["travel_touristic_pca"] = PCA(n_components = 1).fit_transform(travel_touristic_df)
+    listings = drop_col(listings, travel_touristic, regex = False)
+
+    listings = drop_col(listings, ["room_type_Private room", "bath_kind_Shared"], regex = False)
+    listings = drop_col(listings, ["bath_number_2","bedroom_number_2"], regex = False)
+    listings = drop_col(listings, ["bath_kind_Private"], regex = False)
+    listings = drop_col(listings, ["Paid_parking", "Patio_balcony_available"], regex = False)
+    listings = drop_col(listings, ["bath_kind_Normal"], regex = False)
+
+    # PCA for accommodation size
+    acco = ["bedroom_number_1", "accommodates", "beds"]
+
+    accommodation_size_df = listings[acco]
+
+    listings["accommodation_size_pca"] = PCA(n_components = 1).fit_transform(accommodation_size_df)
+    listings = drop_col(listings, acco, regex = False)
+
+    listings = drop_col(listings, ["first_review"], regex = False)
+    listings = drop_col(listings, ["mean_neutrality"], regex = False)
+    listings = drop_col(listings, ["mean_negativity"], regex = False)
+    listings = drop_col(listings, ["review_scores_communication", "review_scores_cleanliness"], regex = False)
+    listings = drop_col(listings, ["no_img_bathroom", "no_img_bedroom"], regex = False)
+    listings = drop_col(listings, ["no_img_living"], regex = False)
+    listings = drop_col(listings, ["positivity_host_ab"], regex = False)
+    listings = drop_col(listings, ["neutrality_host_ab"], regex = False)
+    listings = drop_col(listings, ["neutrality_neigh_over"], regex = False)
+    listings = drop_col(listings, ["neighborhood_overview_length"], regex = False)
+    listings = drop_col(listings, ["description_length"], regex = False)
+    listings = drop_col(listings, ["neutrality_descr"], regex = False)
+
+    # PCA for host listings counts
+    host_listings = ["calculated_host_listings_count", "host_listings_count", "calculated_host_listings_count_private_rooms",  
+                    "calculated_host_listings_count_shared_rooms",  "calculated_host_listings_count_entire_homes"]
+
+    host_listings_df = listings[host_listings]
+    listings["host_listings_pca"] = PCA(n_components = 1).fit_transform(host_listings_df)
+    listings = drop_col(listings, host_listings, regex = False)
+
+    # PCA for minimum nights
+    min_nights = ["minimum_nights", "minimum_minimum_nights", "maximum_minimum_nights", "minimum_nights_avg_ntm"]
+
+    min_nights_df = listings[min_nights]
+
+    listings["min_nights_pca"] = PCA(n_components = 1).fit_transform(min_nights_df)
+    listings = drop_col(listings, min_nights, regex = False)
+
+    # PCA for availability
+    avail = ["availability_365", "availability_30", "availability_60", "availability_90"]
+
+    avail_df = listings[avail]
+
+    listings["availability_pca"] = PCA(n_components = 1).fit_transform(avail_df)
+    listings = drop_col(listings, avail, regex = False)
+
+    # PCA for review total score
+    review_total_scores = ["review_scores_rating", "mean_compound", "most_pos_compound", "mean_positivity"]
+
+    review_total_scores_df = listings[review_total_scores]
+
+    listings["review_total_pca"] = PCA(n_components = 1).fit_transform(review_total_scores_df)
+    listings = drop_col(listings, review_total_scores, regex = False)
+
+    # PCA for review scores
+
+    # PCA for maximum nights
+    max_nights = ["maximum_nights", "minimum_maximum_nights", "maximum_maximum_nights", "maximum_nights_avg_ntm"]
+
+    max_nights_df = listings[max_nights]
+
+    listings["max_nights_pca"] = PCA(n_components = 1).fit_transform(max_nights_df)
+    listings = drop_col(listings, max_nights, regex = False)
+
+    # PCA for amount of reviews
+    review_amount = ["number_of_reviews_l30d", "number_of_reviews_ltm", "reviews_per_month"]
+
+    review_amount_df = listings[review_amount]
+
+    listings["review_amount_pca"] = PCA(n_components = 1).fit_transform(review_amount_df)
+    listings = drop_col(listings, review_amount, regex = False)
+
+    # host_name_sounds_rare or property_type_Private room in renta unit  - keep?
+
+    # property_type_Entire rental unit or room_type_Entire_home/apt
+    listings = drop_col(listings, ["room_type_Entire home/apt"], regex = False)
+
+    # property_type_Entire residential home or accomodation_size_pca
+    listings = drop_col(listings, ["property_type_Entire residential home"], regex = False)
+
+    # review_scores_accuracy or review_scores_value
+    listings = drop_col(listings, ["review_scores_value"], regex = False)
+
+    # social_amenities or travel_touristic_pca
+    listings = drop_col(listings, ["social_amenities"], regex = False)
+
+    # count or no_img_kitchen
+    listings = drop_col(listings, ["no_img_kitchen"], regex = False)
+
+    # host_listings_pca or min_nights_pca
+    listings = drop_col(listings, ["min_nights_pca"], regex = False)
+
+    # host_about_length or compound_host_ab
+    listings = drop_col(listings, ["host_about_length"], regex = False)
+
+    # number of_reviews or most_neg_compound - keep?
+
+    # compound_neigh_over or positivity_neigh_over
+    listings = drop_col(listings, ["positivity_neigh_over"], regex = False)
+
+    # compound_decsr or positivity_descr
+    listings = drop_col(listings, ["positivity_descr"], regex = False)
+
+    # count or no_img_others
+    listings = drop_col(listings, ["no_img_others"], regex = False)
+
+    # after next one
+    # count or no_img_dining
+    listings = drop_col(listings, ["no_img_dining"], regex = False)
+
+    print("PCA's built and correlated features dropped.")
+
+    new_col  = ["city_life_pca","travel_touristic_pca","accommodation_size_pca","host_listings_pca",
+                "availability_pca","review_total_pca","max_nights_pca","review_amount_pca"]
+
+    scaler = StandardScaler()
+    scaler.fit(listings[new_col])
+    stand_values = scaler.transform(listings[new_col])
+    listings[new_col] = stand_values
+
+    print("Features got standardized.")
+
     return price, listings, reviews
+
+
+
+def load_data(drop_id = True, skip = True):
+
+    if skip:
+        price = pd.read_csv("Price.csv")
+        listings = pd.read_csv("Final_listings.csv")
+        del price['Unnamed: 0']
+        del listings['Unnamed: 0']
+    else:
+        price, listings, reviews = selection()
+
+        ### Importance Selection
+
+        importance_drop = ["review_scores_location", "host_name_sounds_west", "contrast", "property_type_Private room in rental unit",
+                            "bath_number_1", "review_scores_accuracy", "most_neg_compound", "negativity_descr", "host_name_sounds_rare",
+                            "Oven_available", "negativity_host_ab", "prop_of_neg_comp", "Free_parking", "negativity_neigh_over",
+                            "no_img_hallway", "Shampoo_Conditioner_available", "host_location_country_Ireland", "Long term stays allowed"]
+
+        listings = drop_col(listings, importance_drop, regex = False)
+        print("Dropped Variables due to the cut off of their shape-value/Permutation Importance.")
+
+        if drop_id:
+            listings = listings.drop("id", axis = 1)
+    
+    print("Have fun implementing your models.")
+
+    return price, listings
