@@ -514,7 +514,7 @@ def load_img_data():
     return price, listings, reviews
 
 
-def selection():
+def mean_tests():
     print('-'*30)
     print('Selecting Features data...')
     print('-'*30)
@@ -525,6 +525,7 @@ def selection():
 
     # get binary variables
     bin_col = [col for col in listings if np.isin(listings[col].unique(), [0, 1]).all()]
+    num_col = [col for col in listings if ~np.isin(listings[col].unique(), [0, 1]).all()]
 
     stats_val = []
     p_val = []
@@ -580,37 +581,33 @@ def selection():
     # if len(insig) > 0:
     #     listings = listings.drop(insig, axis = 1)
 
-    ## Variance Threshold Selection ####
-    
+    return price, listings, reviews
+
+def var_tests():
+    price, listings, reviews = mean_tests()
+
     bin_col = [col for col in listings if np.isin(listings[col].unique(), [0, 1]).all()]
     num_col = [col for col in listings if ~np.isin(listings[col].unique(), [0, 1]).all()]
-
-    scaler = StandardScaler()
-    scaler.fit(listings[num_col])
-    stand_values = scaler.transform(listings[num_col])
-    listings[num_col] = stand_values
-
-    numerical_df = listings.filter(num_col)
-    sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
-    sel.feature_names_in_ = numerical_df.columns
-    sel.fit_transform(numerical_df)
-    num_col = sel.get_feature_names_out()
-    print(str(len(numerical_df.columns) - len(num_col)) + " numerical variables have been removed due to same variance.")
-    print
-    numerical_df = numerical_df.filter(num_col)
-
 
     binary_df = listings.filter(bin_col)
     sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
     sel.feature_names_in_ = binary_df.columns
     sel.fit_transform(binary_df)
     binary_col = sel.get_feature_names_out()
-    print(str(len(binary_df.columns) - len(binary_col)) + " binary variables have been removed due to same variance.")
+    print(str(len(binary_df.columns) - len(binary_col)) + " binary variables have been removed due to close zero-variance.")
     binary_df = binary_df.filter(binary_col)
 
     all_col = list(binary_col) + list(num_col)
     listings = listings.filter(all_col)
 
+    return price, listings, reviews
+
+
+def selection_to_corr():
+    price, listings, reviews = var_tests()
+    
+    #bin_col = [col for col in listings if np.isin(listings[col].unique(), [0, 1]).all()]
+    #num_col = [col for col in listings if ~np.isin(listings[col].unique(), [0, 1]).all()]
 
     #########
     # PCAs and dropping the ones ###
@@ -750,15 +747,8 @@ def selection():
 
     print("PCA's built and correlated features dropped.")
 
-    new_col  = ["city_life_pca","travel_touristic_pca","accommodation_size_pca","host_listings_pca",
-                "availability_pca","review_total_pca","max_nights_pca","review_amount_pca"]
-
-    scaler = StandardScaler()
-    scaler.fit(listings[new_col])
-    stand_values = scaler.transform(listings[new_col])
-    listings[new_col] = stand_values
-
-    print("Features got standardized.")
+    # new_col  = ["city_life_pca","travel_touristic_pca","accommodation_size_pca","host_listings_pca",
+    #             "availability_pca","review_total_pca","max_nights_pca","review_amount_pca"]
 
     return price, listings, reviews
 
@@ -772,7 +762,7 @@ def load_data(drop_id = True, skip = True):
         del price['Unnamed: 0']
         #del listings['Unnamed: 0']
     else:
-        price, listings, reviews = selection()
+        price, listings, reviews = selection_to_corr()
 
         ### Importance Selection
 
@@ -786,6 +776,16 @@ def load_data(drop_id = True, skip = True):
 
         if drop_id:
             listings = listings.drop("id", axis = 1)
+    
+    #bin_col = [col for col in listings if np.isin(listings[col].unique(), [0, 1]).all()]
+    num_col = [col for col in listings if ~np.isin(listings[col].unique(), [0, 1]).all()]
+    
+    scaler = StandardScaler()
+    scaler.fit(listings[num_col])
+    stand_values = scaler.transform(listings[num_col])
+    listings[num_col] = stand_values
+
+    print("Features got standardized.")
     
     print("Have fun implementing your models.")
 
