@@ -770,19 +770,19 @@ def load_data(drop_id = True, skip = True):
         price = pd.read_csv("Price.csv")
         listings = pd.read_csv("Final_listings.csv")
         del price['Unnamed: 0']
-        del listings['Unnamed: 0']
+        #del listings['Unnamed: 0']
     else:
         price, listings, reviews = selection()
 
         ### Importance Selection
 
-        importance_drop = ["review_scores_location", "host_name_sounds_west", "contrast", "property_type_Private room in rental unit",
-                            "bath_number_1", "review_scores_accuracy", "most_neg_compound", "negativity_descr", "host_name_sounds_rare",
-                            "Oven_available", "negativity_host_ab", "prop_of_neg_comp", "Free_parking", "negativity_neigh_over",
-                            "no_img_hallway", "Shampoo_Conditioner_available", "host_location_country_Ireland", "Long term stays allowed"]
+        # importance_drop = ["review_scores_location", "host_name_sounds_west", "contrast", "property_type_Private room in rental unit",
+        #                     "bath_number_1", "review_scores_accuracy", "most_neg_compound", "negativity_descr", "host_name_sounds_rare",
+        #                     "Oven_available", "negativity_host_ab", "prop_of_neg_comp", "Free_parking", "negativity_neigh_over",
+        #                     "no_img_hallway", "Shampoo_Conditioner_available", "host_location_country_Ireland", "Long term stays allowed"]
 
-        listings = drop_col(listings, importance_drop, regex = False)
-        print("Dropped Variables due to the cut off of their shape-value/Permutation Importance.")
+        #listings = drop_col(listings, importance_drop, regex = False)
+        #print("Dropped Variables due to the cut off of their shape-value/Permutation Importance.")
 
         if drop_id:
             listings = listings.drop("id", axis = 1)
