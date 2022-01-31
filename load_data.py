@@ -11,6 +11,7 @@ from scipy.stats import halfnorm
 import warnings
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 from scipy import stats
 import matplotlib.pyplot as plt
 from scipy.cluster import hierarchy
@@ -616,7 +617,11 @@ def selection_to_corr():
     city_life = ["nightclubs", "sex_amenities", "bicycle_rentals", "casinos", "university", 
                 "theatres_artscentre", "library", "taxi", "fast_foods", "restaurants", "bars",
                 "cafes", "malls", "cinemas", "supermarkets", "bus_train_tram_station"]
-                
+    scaler = StandardScaler()
+    scaler.fit(listings[city_life])
+    listings[city_life] = scaler.transform(listings[city_life])
+
+    
     city_life_df = listings[city_life]
     listings["city_life_pca"] = PCA(n_components = 1).fit_transform(city_life_df)
     listings = drop_col(listings, city_life, regex = False)
@@ -624,7 +629,10 @@ def selection_to_corr():
     # PCA for touristic and travel
     travel_touristic = ["neighbourhood_cleansed_Dublin City", "in_city", "nearest_sight", "mean_dist_sight", "2nd_nearest_sight",
                         "3rd_nearest_sight", "nearest_travel_poss", "mean_dist_travel"]
-
+    scaler = StandardScaler()
+    scaler.fit(listings[travel_touristic])
+    listings[travel_touristic] = scaler.transform(listings[travel_touristic])
+    
     travel_touristic_df = listings[travel_touristic]
 
     listings["travel_touristic_pca"] = PCA(n_components = 1).fit_transform(travel_touristic_df)
@@ -638,7 +646,9 @@ def selection_to_corr():
 
     # PCA for accommodation size
     acco = ["bedroom_number_1", "accommodates", "beds"]
-
+    scaler = StandardScaler()
+    scaler.fit(listings[acco])
+    listings[acco] = scaler.transform(listings[acco])
     accommodation_size_df = listings[acco]
 
     listings["accommodation_size_pca"] = PCA(n_components = 1).fit_transform(accommodation_size_df)
@@ -660,14 +670,18 @@ def selection_to_corr():
     # PCA for host listings counts
     host_listings = ["calculated_host_listings_count", "host_listings_count", "calculated_host_listings_count_private_rooms",  
                     "calculated_host_listings_count_shared_rooms",  "calculated_host_listings_count_entire_homes"]
-
+    scaler = StandardScaler()
+    scaler.fit(listings[host_listings])
+    listings[host_listings] = scaler.transform(listings[host_listings])
     host_listings_df = listings[host_listings]
     listings["host_listings_pca"] = PCA(n_components = 1).fit_transform(host_listings_df)
     listings = drop_col(listings, host_listings, regex = False)
 
     # PCA for minimum nights
     min_nights = ["minimum_nights", "minimum_minimum_nights", "maximum_minimum_nights", "minimum_nights_avg_ntm"]
-
+    scaler = StandardScaler()
+    scaler.fit(listings[min_nights])
+    listings[min_nights] = scaler.transform(listings[min_nights])
     min_nights_df = listings[min_nights]
 
     listings["min_nights_pca"] = PCA(n_components = 1).fit_transform(min_nights_df)
@@ -675,7 +689,9 @@ def selection_to_corr():
 
     # PCA for availability
     avail = ["availability_365", "availability_30", "availability_60", "availability_90"]
-
+    scaler = StandardScaler()
+    scaler.fit(listings[avail])
+    listings[avail] = scaler.transform(listings[avail])
     avail_df = listings[avail]
 
     listings["availability_pca"] = PCA(n_components = 1).fit_transform(avail_df)
@@ -683,7 +699,9 @@ def selection_to_corr():
 
     # PCA for review total score
     review_total_scores = ["review_scores_rating", "mean_compound", "most_pos_compound", "mean_positivity"]
-
+    scaler = StandardScaler()
+    scaler.fit(listings[review_total_scores])
+    listings[review_total_scores] = scaler.transform(listings[review_total_scores])
     review_total_scores_df = listings[review_total_scores]
 
     listings["review_total_pca"] = PCA(n_components = 1).fit_transform(review_total_scores_df)
@@ -693,7 +711,9 @@ def selection_to_corr():
 
     # PCA for maximum nights
     max_nights = ["maximum_nights", "minimum_maximum_nights", "maximum_maximum_nights", "maximum_nights_avg_ntm"]
-
+    scaler = StandardScaler()
+    scaler.fit(listings[max_nights])
+    listings[max_nights] = scaler.transform(listings[max_nights])
     max_nights_df = listings[max_nights]
 
     listings["max_nights_pca"] = PCA(n_components = 1).fit_transform(max_nights_df)
@@ -701,7 +721,9 @@ def selection_to_corr():
 
     # PCA for amount of reviews
     review_amount = ["number_of_reviews_l30d", "number_of_reviews_ltm", "reviews_per_month"]
-
+    scaler = StandardScaler()
+    scaler.fit(listings[review_amount])
+    listings[review_amount] = scaler.transform(listings[review_amount])
     review_amount_df = listings[review_amount]
 
     listings["review_amount_pca"] = PCA(n_components = 1).fit_transform(review_amount_df)
@@ -780,13 +802,19 @@ def load_data(drop_id = True, skip = True):
     #bin_col = [col for col in listings if np.isin(listings[col].unique(), [0, 1]).all()]
     num_col = [col for col in listings if ~np.isin(listings[col].unique(), [0, 1]).all()]
     
+    # rename for TabNet
+    listings.rename(columns = {"property_type_Private room in residential home": "property_type_private_room_residential_home","property_type_Entire rental unit": "property_type_entire_rental_units"}, inplace = True)
+
+    X_train, X_test, y_train, y_test = train_test_split(listings, price["log_price"], random_state = 123, test_size = 0.2)
+
+    # standardize
     scaler = StandardScaler()
-    scaler.fit(listings[num_col])
-    stand_values = scaler.transform(listings[num_col])
-    listings[num_col] = stand_values
+    scaler.fit(X_train[num_col])
+    X_train[num_col] = scaler.transform(X_train[num_col])
+    X_test[num_col] = scaler.transform(X_test[num_col])
 
     print("Features got standardized.")
     
     print("Have fun implementing your models.")
 
-    return price, listings
+    return X_train, X_test, y_train, y_test
