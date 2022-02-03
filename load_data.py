@@ -614,26 +614,29 @@ def selection_to_corr():
     # PCAs and dropping the ones ###
     #########
     # PCA for city-life
-    city_life = ["nightclubs", "sex_amenities", "bicycle_rentals", "casinos", "university", 
-                "theatres_artscentre", "library", "taxi", "fast_foods", "restaurants", "bars",
-                "cafes", "malls", "cinemas", "supermarkets", "bus_train_tram_station"]
+    city_life = ["nightclubs", "sex_amenities", "bicycle_rentals", "casinos", "university",     
+                 "theatres_artscentre", "library", "taxi", "fast_foods", "restaurants", "bars",
+                 "cafes", "malls", "cinemas", "supermarkets", "bus_train_tram_station", "social_amenities"]
     scaler = StandardScaler()
     scaler.fit(listings[city_life])
-    listings[city_life] = scaler.transform(listings[city_life])
+    city_life_df = scaler.transform(listings[city_life])
 
-    
-    city_life_df = listings[city_life]
-    listings["city_life_pca"] = PCA(n_components = 1).fit_transform(city_life_df)
+    city_pcas = PCA(n_components = 5).fit_transform(city_life_df)
+    listings["city_life_pca1"] = city_pcas[:,0]
+    listings["city_life_pca2"] = city_pcas[:,1]
+    listings["city_life_pca3"] = city_pcas[:,2]
+    listings["city_life_pca4"] = city_pcas[:,3]
+    listings["city_life_pca5"] = city_pcas[:,4]
+
     listings = drop_col(listings, city_life, regex = False)
 
     # PCA for touristic and travel
-    travel_touristic = ["neighbourhood_cleansed_Dublin City", "in_city", "nearest_sight", "mean_dist_sight", "2nd_nearest_sight",
-                        "3rd_nearest_sight", "nearest_travel_poss", "mean_dist_travel"]
-    scaler = StandardScaler()
+    travel_touristic = ["neighbourhood_cleansed_Dublin City", "in_city", "nearest_sight", "mean_dist_sight", 
+                        "2nd_nearest_sight", "3rd_nearest_sight", "nearest_travel_poss", "mean_dist_travel"]
+
+    scaler = StandardScaler()                   
     scaler.fit(listings[travel_touristic])
-    listings[travel_touristic] = scaler.transform(listings[travel_touristic])
-    
-    travel_touristic_df = listings[travel_touristic]
+    travel_touristic_df = scaler.transform(listings[travel_touristic])
 
     listings["travel_touristic_pca"] = PCA(n_components = 1).fit_transform(travel_touristic_df)
     listings = drop_col(listings, travel_touristic, regex = False)
@@ -648,15 +651,14 @@ def selection_to_corr():
     acco = ["bedroom_number_1", "accommodates", "beds"]
     scaler = StandardScaler()
     scaler.fit(listings[acco])
-    listings[acco] = scaler.transform(listings[acco])
-    accommodation_size_df = listings[acco]
+    accommodation_size_df = scaler.transform(listings[acco])
 
-    listings["accommodation_size_pca"] = PCA(n_components = 1).fit_transform(accommodation_size_df)
+    acco_size_pcas = PCA(n_components = 2).fit_transform(accommodation_size_df)
+    listings["accommodation_size_pca1"] = acco_size_pcas[:, 0]
+    listings["accommodation_size_pca2"] = acco_size_pcas[:, 1]
     listings = drop_col(listings, acco, regex = False)
 
     listings = drop_col(listings, ["first_review"], regex = False)
-    listings = drop_col(listings, ["mean_neutrality"], regex = False)
-    listings = drop_col(listings, ["mean_negativity"], regex = False)
     listings = drop_col(listings, ["review_scores_communication", "review_scores_cleanliness"], regex = False)
     listings = drop_col(listings, ["no_img_bathroom", "no_img_bedroom"], regex = False)
     listings = drop_col(listings, ["no_img_living"], regex = False)
@@ -672,8 +674,7 @@ def selection_to_corr():
                     "calculated_host_listings_count_shared_rooms",  "calculated_host_listings_count_entire_homes"]
     scaler = StandardScaler()
     scaler.fit(listings[host_listings])
-    listings[host_listings] = scaler.transform(listings[host_listings])
-    host_listings_df = listings[host_listings]
+    host_listings_df = scaler.transform(listings[host_listings])
     listings["host_listings_pca"] = PCA(n_components = 1).fit_transform(host_listings_df)
     listings = drop_col(listings, host_listings, regex = False)
 
@@ -681,8 +682,7 @@ def selection_to_corr():
     min_nights = ["minimum_nights", "minimum_minimum_nights", "maximum_minimum_nights", "minimum_nights_avg_ntm"]
     scaler = StandardScaler()
     scaler.fit(listings[min_nights])
-    listings[min_nights] = scaler.transform(listings[min_nights])
-    min_nights_df = listings[min_nights]
+    min_nights_df = scaler.transform(listings[min_nights])
 
     listings["min_nights_pca"] = PCA(n_components = 1).fit_transform(min_nights_df)
     listings = drop_col(listings, min_nights, regex = False)
@@ -691,20 +691,24 @@ def selection_to_corr():
     avail = ["availability_365", "availability_30", "availability_60", "availability_90"]
     scaler = StandardScaler()
     scaler.fit(listings[avail])
-    listings[avail] = scaler.transform(listings[avail])
-    avail_df = listings[avail]
+    avail_df = scaler.transform(listings[avail])
 
     listings["availability_pca"] = PCA(n_components = 1).fit_transform(avail_df)
     listings = drop_col(listings, avail, regex = False)
 
     # PCA for review total score
-    review_total_scores = ["review_scores_rating", "mean_compound", "most_pos_compound", "mean_positivity"]
+    review_total_scores = ["review_scores_rating", "mean_compound", "most_pos_compound", "mean_positivity",
+                           "mean_neutrality", "mean_negativity", "most_neg_compound"]
     scaler = StandardScaler()
     scaler.fit(listings[review_total_scores])
-    listings[review_total_scores] = scaler.transform(listings[review_total_scores])
-    review_total_scores_df = listings[review_total_scores]
+    review_total_scores_df = scaler.transform(listings[review_total_scores])
 
-    listings["review_total_pca"] = PCA(n_components = 1).fit_transform(review_total_scores_df)
+    review_total_pcas = PCA(n_components = 4).fit_transform(review_total_scores_df)
+    listings["review_total_pca1"] = review_total_pcas[:, 0]
+    listings["review_total_pca2"] = review_total_pcas[:, 1]
+    listings["review_total_pca3"] = review_total_pcas[:, 2]
+    listings["review_total_pca4"] = review_total_pcas[:, 3]
+
     listings = drop_col(listings, review_total_scores, regex = False)
 
     # PCA for review scores
@@ -713,8 +717,7 @@ def selection_to_corr():
     max_nights = ["maximum_nights", "minimum_maximum_nights", "maximum_maximum_nights", "maximum_nights_avg_ntm"]
     scaler = StandardScaler()
     scaler.fit(listings[max_nights])
-    listings[max_nights] = scaler.transform(listings[max_nights])
-    max_nights_df = listings[max_nights]
+    max_nights_df = scaler.transform(listings[max_nights])
 
     listings["max_nights_pca"] = PCA(n_components = 1).fit_transform(max_nights_df)
     listings = drop_col(listings, max_nights, regex = False)
@@ -723,10 +726,11 @@ def selection_to_corr():
     review_amount = ["number_of_reviews_l30d", "number_of_reviews_ltm", "reviews_per_month"]
     scaler = StandardScaler()
     scaler.fit(listings[review_amount])
-    listings[review_amount] = scaler.transform(listings[review_amount])
-    review_amount_df = listings[review_amount]
+    review_amount_df = scaler.transform(listings[review_amount])
+    review_amount_pcas = PCA(n_components = 2).fit_transform(review_amount_df)
 
-    listings["review_amount_pca"] = PCA(n_components = 1).fit_transform(review_amount_df)
+    listings["review_amount_pca1"] = review_amount_pcas[:,0]
+    listings["review_amount_pca2"] = review_amount_pcas[:,1]
     listings = drop_col(listings, review_amount, regex = False)
 
     # host_name_sounds_rare or property_type_Private room in renta unit  - keep?
@@ -739,9 +743,6 @@ def selection_to_corr():
 
     # review_scores_accuracy or review_scores_value
     listings = drop_col(listings, ["review_scores_value"], regex = False)
-
-    # social_amenities or travel_touristic_pca
-    listings = drop_col(listings, ["social_amenities"], regex = False)
 
     # count or no_img_kitchen
     listings = drop_col(listings, ["no_img_kitchen"], regex = False)
