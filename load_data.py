@@ -844,6 +844,7 @@ class Wrangler:
         self.data = self.transform_second()
         self.fit_third()
         self.data, price = self.transform_third(log_transform, drop_id)
+        self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
         
     def transform(self, X, log_transform = True, drop_id = True):
@@ -857,6 +858,7 @@ class Wrangler:
         self.data = self.transform_first(fit = False)
         self.data = self.transform_second()
         self.data, price = self.transform_third(log_transform, drop_id)       
+        self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
 
     def fit_transform_dendro(self, X, log_transform = True, drop_id = True):
@@ -871,6 +873,7 @@ class Wrangler:
         self.data = self.transform_first(fit = True)
         self.fit_third()
         self.data, price = self.transform_third(log_transform, drop_id)
+        self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
         
     def transform_dendro(self, X, log_transform = True, drop_id = True):
@@ -882,7 +885,8 @@ class Wrangler:
         self.data = self.process_amenities(fit = False)
         self.data = self.add_stuff()
         self.data = self.transform_first(fit = False)
-        self.data, price = self.transform_third(log_transform, drop_id)       
+        self.data, price = self.transform_third(log_transform, drop_id) 
+        self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
 
 
