@@ -529,8 +529,8 @@ class Wrangler:
 
         # PCAs FIT
         self.city_life = ["nightclubs", "sex_amenities", "bicycle_rentals", "casinos", "university",     
-                 "theatres_artscentre", "library", "taxi", "fast_foods", "restaurants", "bars",
-                 "cafes", "malls", "cinemas", "supermarkets", "bus_train_tram_station", "social_amenities"]
+                          "theatres_artscentre", "library", "taxi", "fast_foods", "restaurants", "bars",
+                          "cafes", "malls", "cinemas", "supermarkets", "bus_train_tram_station", "social_amenities"]
         scaler = StandardScaler()
         self.scaler_pca_city_life = scaler.fit(self.data[self.city_life])
         city_life_df = self.scaler_pca_city_life.transform(self.data[self.city_life])
@@ -538,26 +538,39 @@ class Wrangler:
         
         # PCA for touristic and travel
         self.travel_touristic = ["neighbourhood_cleansed_Dublin City", "in_city", "nearest_sight", "mean_dist_sight", 
-                            "2nd_nearest_sight", "3rd_nearest_sight", "nearest_travel_poss", "mean_dist_travel"]
+                                 "2nd_nearest_sight", "3rd_nearest_sight", "nearest_travel_poss", "mean_dist_travel"]
 
         scaler = StandardScaler()
         self.scaler_pca_travel = scaler.fit(self.data[self.travel_touristic])
         travel_touristic_df = self.scaler_pca_travel.transform(self.data[self.travel_touristic])
         self.pca_travel = PCA(n_components = 1).fit(travel_touristic_df)
 
+        # PCA for kitchen + equipment
+        self.kitchen = ["Microwave", "Dishes and silverware", "Refridgerator_available", "Dishwasher",
+                        "Stoves_available", "Cooking basics", "Oven_available", "Kitchen_available"]
+
+        scaler = StandardScaler()
+        self.scaler_pca_kitchen = scaler.fit(self.data[self.kitchen])
+        kitchen_df = self.scaler_pca_kitchen.transform(self.data[self.kitchen])
+        self.pca_kitchen = PCA(n_components = 4).fit(kitchen_df)
+
         # PCA for accommodation size
-        self.acco = ["bedrooms_1", "accommodates", "beds"]
+        self.acco = ["bedrooms_1", "bedrooms_2", "accommodates", "beds", "room_type_Entire home/apt", "room_type_Private room",
+                     "bath_number_1", "bath_number_2", "bath_kind_Shared", "bath_kind_Private", "bath_kind_Normal",
+                     "property_type_Entire residential home", "property_type_Entire rental unit", "property_type_Others"]
         scaler = StandardScaler()
         self.scaler_pca_acco = scaler.fit(self.data[self.acco])
         accommodation_size_df = self.scaler_pca_acco.transform(self.data[self.acco])
-        self.pca_acco_size = PCA(n_components = 2).fit(accommodation_size_df)
+        self.pca_acco_size = PCA(n_components = 6).fit(accommodation_size_df)
         
         # PCA for host listings counts
-        self.host_listings = ["calculated_host_listings_count", "host_listings_count", "calculated_host_listings_count_private_rooms", "calculated_host_listings_count_shared_rooms",  "calculated_host_listings_count_entire_homes"]
+        self.host_listings = ["calculated_host_listings_count", "host_listings_count", 
+                              "calculated_host_listings_count_private_rooms", "calculated_host_listings_count_shared_rooms",  
+                              "calculated_host_listings_count_entire_homes"]
         scaler = StandardScaler()
         self.scaler_pca_host = scaler.fit(self.data[self.host_listings])
         host_listings_df = self.scaler_pca_host.transform(self.data[self.host_listings])
-        self.pca_host = PCA(n_components = 1).fit(host_listings_df)
+        self.pca_host = PCA(n_components = 3).fit(host_listings_df)
        
         # PCA for minimum nights
         self.min_nights = ["minimum_nights", "minimum_minimum_nights", "maximum_minimum_nights", "minimum_nights_avg_ntm"]
@@ -575,14 +588,15 @@ class Wrangler:
 
         # PCA for review total score
         self.review_total_scores = ["review_scores_rating", "mean_compound", "most_pos_compound", "mean_positivity",
-                            "mean_neutrality", "mean_negativity", "most_neg_compound"]
+                                    "mean_neutrality", "mean_negativity", "most_neg_compound", "prop_of_neg_comp"]
         scaler = StandardScaler()
         self.scaler_pca_review = scaler.fit(self.data[self.review_total_scores])
         review_total_scores_df = self.scaler_pca_review.transform(self.data[self.review_total_scores])
         self.pca_review = PCA(n_components = 4).fit(review_total_scores_df)
 
         # PCA for maximum nights
-        self.max_nights = ["maximum_nights", "minimum_maximum_nights", "maximum_maximum_nights", "maximum_nights_avg_ntm"]
+        self.max_nights = ["maximum_nights", "minimum_maximum_nights", "maximum_maximum_nights", 
+                           "maximum_nights_avg_ntm", "Long term stays allowed"]
         scaler = StandardScaler()
         self.scaler_pca_max_nights = scaler.fit(self.data[self.max_nights])
         max_nights_df = self.scaler_pca_max_nights.transform(self.data[self.max_nights])
@@ -594,6 +608,36 @@ class Wrangler:
         self.scaler_pca_review_amount = scaler.fit(self.data[self.review_amount])
         review_amount_df = self.scaler_pca_review_amount.transform(self.data[self.review_amount])
         self.pca_review_amount = PCA(n_components = 2).fit(review_amount_df)
+
+        # PCA for host about
+        self.host_ab = ["compound_host_ab", "positivity_host_ab", "host_about_length", "neutrality_host_ab"]
+        scaler = StandardScaler()
+        self.scaler_pca_host_ab = scaler.fit(self.data[self.host_ab])
+        host_ab_df = self.scaler_pca_host_ab.transform(self.data[self.host_ab])
+        self.pca_host_ab = PCA(n_components = 2).fit(host_ab_df)
+
+        # PCA for neighborhood overview
+        self.neigh_over = ["compound_neigh_over", "positivity_neigh_over", "neighborhood_overview_length", "neutrality_neigh_over"]
+        scaler = StandardScaler()
+        self.scaler_pca_neigh_over = scaler.fit(self.data[self.neigh_over])
+        neigh_over_df = self.scaler_pca_neigh_over.transform(self.data[self.neigh_over])
+        self.pca_neigh_over = PCA(n_components = 2).fit(neigh_over_df)
+
+        # PCA for amount of reviews
+        self.descr = ["compound_descr", "positivity_descr", "description_length", "neutrality_descr"]
+        scaler = StandardScaler()
+        self.scaler_pca_descr = scaler.fit(self.data[self.descr])
+        descr_df = self.scaler_pca_descr.transform(self.data[self.descr])
+        self.pca_descr = PCA(n_components = 2).fit(descr_df)
+
+        # PCAs for image numbers
+        self.img_no = ["no_img_others", "no_img_hallway", "no_img_dining", "no_img_bathroom", "count", 
+                       "no_img_bedroom", "no_img_kitchen", "no_img_living"]
+        scaler = StandardScaler()
+        self.scaler_pca_img_no = scaler.fit(self.data[self.img_no])
+        img_no_df = self.scaler_pca_img_no.transform(self.data[self.img_no])
+        self.pca_city = PCA(n_components = 5).fit(img_no_df)
+
 
         return self 
     
@@ -613,14 +657,29 @@ class Wrangler:
         self.data["travel_touristic_pca"] = self.pca_travel.transform(travel_touristic_df)
         self.data = drop_col(self.data, self.travel_touristic, regex = False)
 
+        kitchen_df = self.scaler_pca_city_life.transform(self.data[self.kitchen])
+        kitchen_pcas = self.pca_city.transform(kitchen_df)
+        self.data["kitchen_pca1"] = kitchen_pcas[:,0]
+        self.data["kitchen_pca2"] = kitchen_pcas[:,1]
+        self.data["kitchen_pca3"] = kitchen_pcas[:,2]
+        self.data["kitchen_pca4"] = kitchen_pcas[:,3]
+        self.data = drop_col(self.data, self.kitchen, regex = False)
+
         accommodation_size_df = self.scaler_pca_acco.transform(self.data[self.acco])
         acco_size_pcas = self.pca_acco_size.transform(accommodation_size_df)
         self.data["accommodation_size_pca1"] = acco_size_pcas[:, 0]
         self.data["accommodation_size_pca2"] = acco_size_pcas[:, 1]
+        self.data["accommodation_size_pca3"] = acco_size_pcas[:, 2]
+        self.data["accommodation_size_pca4"] = acco_size_pcas[:, 3]
+        self.data["accommodation_size_pca5"] = acco_size_pcas[:, 4]
+        self.data["accommodation_size_pca6"] = acco_size_pcas[:, 5]
         self.data = drop_col(self.data, self.acco, regex = False)
 
         host_listings_df = self.scaler_pca_host.transform(self.data[self.host_listings])
-        self.data["host_listings_pca"] =  self.pca_host.transform(host_listings_df)
+        host_listings_pcas = self.pca_host.transform(host_listings_df)
+        self.data["host_listings_pca1"] = host_listings_pcas[:,0]
+        self.data["host_listings_pca2"] = host_listings_pcas[:,1]
+        self.data["host_listings_pca3"] = host_listings_pcas[:,2]
         self.data = drop_col(self.data, self.host_listings, regex = False)
         
         min_nights_df = self.scaler_pca_min_nights.transform(self.data[self.min_nights])
@@ -648,46 +707,66 @@ class Wrangler:
         self.data["review_amount_pca1"] = review_amount_pcas[:,0]
         self.data["review_amount_pca2"] = review_amount_pcas[:,1]
         self.data = drop_col(self.data, self.review_amount, regex = False)
-        
-        # DROP DUE TO CORRELATION  
-        self.data = drop_col(self.data, ["room_type_Private room", "bath_kind_Shared"], regex = False)
-        self.data = drop_col(self.data, ["bath_number_2","bedrooms_2"], regex = False)
-        self.data = drop_col(self.data, ["bath_kind_Private"], regex = False)
-        self.data = drop_col(self.data, ["Paid_parking", "Patio_balcony_available"], regex = False)
-        self.data = drop_col(self.data, ["bath_kind_Normal"], regex = False)
-        self.data = drop_col(self.data, ["first_review"], regex = False)
-        self.data = drop_col(self.data, ["review_scores_communication", "review_scores_cleanliness"], regex = False)
-        self.data = drop_col(self.data, ["no_img_bathroom", "no_img_bedroom"], regex = False)
-        self.data = drop_col(self.data, ["no_img_living"], regex = False)
-        self.data = drop_col(self.data, ["positivity_host_ab"], regex = False)
-        self.data = drop_col(self.data, ["neutrality_host_ab"], regex = False)
-        self.data = drop_col(self.data, ["neutrality_neigh_over"], regex = False)
-        self.data = drop_col(self.data, ["neighborhood_overview_length"], regex = False)
-        self.data = drop_col(self.data, ["description_length"], regex = False)
-        self.data = drop_col(self.data, ["neutrality_descr"], regex = False)
-        # property_type_Entire rental unit or room_type_Entire_home/apt
-        self.data = drop_col(self.data, ["room_type_Entire home/apt"], regex = False)
-        # property_type_Entire residential home or accomodation_size_pca
-        self.data = drop_col(self.data, ["property_type_Entire residential home"], regex = False)
-        # review_scores_accuracy or review_scores_value
-        self.data = drop_col(self.data, ["review_scores_value"], regex = False)
-        # count or no_img_kitchen
-        self.data = drop_col(self.data, ["no_img_kitchen"], regex = False)
-        # host_self.data_pca or min_nights_pca
-        self.data = drop_col(self.data, ["min_nights_pca"], regex = False)
-        # host_about_length or compound_host_ab
-        self.data = drop_col(self.data, ["host_about_length"], regex = False)
-        # number of_reviews or most_neg_compound - keep?
-        # compound_neigh_over or positivity_neigh_over
-        self.data = drop_col(self.data, ["positivity_neigh_over"], regex = False)
-        # compound_decsr or positivity_descr
-        self.data = drop_col(self.data, ["positivity_descr"], regex = False)
-        # count or no_img_others
-        self.data = drop_col(self.data, ["no_img_others"], regex = False)
-        # after next one
-        # count or no_img_dining
-        self.data = drop_col(self.data, ["no_img_dining"], regex = False)
 
+        host_ab_df = self.scaler_pca_host_ab.transform(self.data[self.host_ab])
+        host_ab_pcas = self.pca_host_ab.transform(host_ab_df)
+        self.data["host_ab_pca1"] = host_ab_pcas[:,0]
+        self.data["host_ab_pca2"] = host_ab_pcas[:,1]
+        self.data = drop_col(self.data, self.host_ab, regex = False)
+
+        neigh_over_df = self.scaler_pca_neigh_over.transform(self.data[self.neigh_over])
+        neigh_over_pcas = self.pca_neigh_over.transform(neigh_over_df)
+        self.data["neigh_over_pca1"] = neigh_over_pcas[:,0]
+        self.data["neigh_over_pca2"] = neigh_over_pcas[:,1]
+        self.data = drop_col(self.data, self.neigh_over, regex = False)
+
+        descr_df = self.scaler_pca_descr.transform(self.data[self.descr])
+        descr_pcas = self.pca_descr.transform(descr_df)
+        self.data["descr_pca1"] = descr_pcas[:,0]
+        self.data["descr_pca2"] = descr_pcas[:,1]
+        self.data = drop_col(self.data, self.descr, regex = False)
+
+        # PCA TRANSFORMS
+        img_no_df = self.scaler_pca_img_no.transform(self.data[self.img_no])
+        image_pcas = self.pca_city.transform(img_no_df)
+        self.data["img_no_pca1"] = image_pcas[:,0]
+        self.data["img_no_pca2"] = image_pcas[:,1]
+        self.data["img_no_pca3"] = image_pcas[:,2]
+        self.data["img_no_pca4"] = image_pcas[:,3]
+        self.data["img_no_pca5"] = image_pcas[:,4]
+        self.data = drop_col(self.data, self.img_no, regex = False)
+                
+        # DROP DUE TO CORRELATION  
+        # keep Dryer available
+        self.data = drop_col(self.data, ["Washer_available"], regex = False) 
+        # no good PCA, keep Shampoo_Conditioner_available
+        self.data = drop_col(self.data, ["Hangers", "Hair dryer", "Iron"], regex = False) 
+        # keep Washer available, Kitchen in PCA
+        self.data = drop_col(self.data, ["Smoke alarm", "host_location_country_Ireland"], regex = False) 
+        # keep fire extinguisher
+        self.data = drop_col(self.data, ["First aid kit"], regex = False) 
+        # keep Bed linens
+        self.data = drop_col(self.data, ["Hot water"], regex = False) 
+        # keep Private Entrance
+        self.data = drop_col(self.data, ["Cable TV", "Indoor fireplace"], regex = False) 
+        # keep Safe_available
+        self.data = drop_col(self.data, ["Paid_parking", "Shower gel", "Bathtub", "Baby_friendly",], regex = False) 
+        # Dishwasher in KitchenPCA, keep garden_available
+        self.data = drop_col(self.data, ["Coffee_machine_available", "Patio_balcony_available"], regex = False) 
+        # keep Breakfast, bath private in bath PCA
+        self.data = drop_col(self.data, ["Host greets you"], regex = False) 
+        # keep last_review
+        self.data = drop_col(self.data, ["first_review"], regex = False) 
+        # PCA does not work that good, keep "review_scores_communication"
+        self.data = drop_col(self.data, ["review_scores_location", "review_scores_accuracy",   
+                                        "review_scores_cleanliness", "review_scores_value"], regex = False) 
+        # keep breakfast
+        self.data = drop_col(self.data, ["Lock on bedroom door"], regex = False) 
+        # keep Private Entrance
+        self.data = drop_col(self.data, ["Safe_available", "Garden_backyard_available"], regex = False) 
+        # will correlate with kitchen pca
+        self.data = drop_col(self.data, ["Bed linens"], regex = False) 
+        
         print("PCA's built and correlated features dropped.")
         
         return self.data
