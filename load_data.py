@@ -636,7 +636,7 @@ class Wrangler:
         scaler = StandardScaler()
         self.scaler_pca_img_no = scaler.fit(self.data[self.img_no])
         img_no_df = self.scaler_pca_img_no.transform(self.data[self.img_no])
-        self.pca_city = PCA(n_components = 5).fit(img_no_df)
+        self.pca_img_no = PCA(n_components = 5).fit(img_no_df)
 
 
         return self 
@@ -657,8 +657,8 @@ class Wrangler:
         self.data["travel_touristic_pca"] = self.pca_travel.transform(travel_touristic_df)
         self.data = drop_col(self.data, self.travel_touristic, regex = False)
 
-        kitchen_df = self.scaler_pca_city_life.transform(self.data[self.kitchen])
-        kitchen_pcas = self.pca_city.transform(kitchen_df)
+        kitchen_df = self.scaler_pca_kitchen.transform(self.data[self.kitchen])
+        kitchen_pcas = self.pca_kitchen.transform(kitchen_df)
         self.data["kitchen_pca1"] = kitchen_pcas[:,0]
         self.data["kitchen_pca2"] = kitchen_pcas[:,1]
         self.data["kitchen_pca3"] = kitchen_pcas[:,2]
@@ -728,7 +728,7 @@ class Wrangler:
 
         # PCA TRANSFORMS
         img_no_df = self.scaler_pca_img_no.transform(self.data[self.img_no])
-        image_pcas = self.pca_city.transform(img_no_df)
+        image_pcas = self.pca_img_no.transform(img_no_df)
         self.data["img_no_pca1"] = image_pcas[:,0]
         self.data["img_no_pca2"] = image_pcas[:,1]
         self.data["img_no_pca3"] = image_pcas[:,2]
