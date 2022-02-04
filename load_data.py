@@ -195,9 +195,9 @@ class Wrangler:
         if fit:
             sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
             sel.feature_names_in_ = am_df.columns
-            self.variance_threshold = sel.fit(am_df)
+            self.variance_threshold_am = sel.fit(am_df)
         
-        am_col = self.variance_threshold.get_feature_names_out()
+        am_col = self.variance_threshold_am.get_feature_names_out()
         print(str(len(am_df.columns) - len(am_col)) + " amenities have been removed due to close zero-variance.")
         am_df = am_df.filter(am_col)
         # join amenities with listings
@@ -365,7 +365,7 @@ class Wrangler:
 
         return self
     
-    def transform_first(self):   
+    def transform_first(self, fit = True):   
         # CLEAN HOST LOCATION
         country_abr = pd.read_csv("https://gist.githubusercontent.com/radcliff/f09c0f88344a7fcef373/raw/2753c482ad091c54b1822288ad2e4811c021d8ec/wikipedia-iso-country-codes.csv")
         country_list = list(country_abr.iloc[:,0])
@@ -499,6 +499,20 @@ class Wrangler:
         for i in date_col:
             self.data[i] = pd.Series([j.days for j in list(self.data[i])])
         
+        # VARIANCE THRESHOLD
+        bin_col = [col for col in self.data if np.isin(self.data[col].unique(), [0, 1]).all()]
+        num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
+        binary_df = self.data.filter(bin_col)
+        if fit:
+            sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
+            sel.feature_names_in_ = binary_df.columns
+            self.variance_threshold = sel.fit(binary_df)
+        binary_col = self.variance_threshold.get_feature_names_out()
+        print(str(len(binary_df.columns) - len(binary_col)) + " binary variables have been removed due to close zero-variance.")
+        binary_df = binary_df.filter(binary_col)
+        all_col = list(binary_col) + list(num_col)
+        self.data = self.data.filter(all_col)       
+        
         # DROP
         self.data = self.data.drop(["host_location","host_id", "host_url", "name", "description", "neighborhood_overview", "host_name", "host_about"], axis = 1)
 
@@ -512,11 +526,6 @@ class Wrangler:
         return self.data
     
     def fit_second(self):
-        bin_col = [col for col in self.data if np.isin(self.data[col].unique(), [0, 1]).all()]
-        binary_df = self.data.filter(bin_col)
-        sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
-        sel.feature_names_in_ = binary_df.columns
-        self.variance_threshold = sel.fit(binary_df)
 
         # PCAs FIT
         self.city_life = ["nightclubs", "sex_amenities", "bicycle_rentals", "casinos", "university",     
@@ -589,17 +598,7 @@ class Wrangler:
         return self 
     
     def transform_second(self):
-        bin_col = [col for col in self.data if np.isin(self.data[col].unique(), [0, 1]).all()]
-        num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
 
-        binary_df = self.data.filter(bin_col)
-        binary_col = self.variance_threshold.get_feature_names_out()
-        print(str(len(binary_df.columns) - len(binary_col)) + " binary variables have been removed due to close zero-variance.")
-        binary_df = binary_df.filter(binary_col)
-
-        all_col = list(binary_col) + list(num_col)
-        self.data = self.data.filter(all_col)
-        
         # PCA TRANSFORMS
         city_life_df = self.scaler_pca_city_life.transform(self.data[self.city_life])
         city_pcas = self.pca_city.transform(city_life_df)
@@ -694,6 +693,7 @@ class Wrangler:
         return self.data
     
     def fit_third(self):
+        
         # T-TESTS
         # get binary variables
         bin_col = [col for col in self.data if (np.isin(self.data[col].unique(), [0, 1]).all() or np.isin(self.data[col].unique(), [0., 1.]).all())]
@@ -760,7 +760,7 @@ class Wrangler:
         self.data = self.process_amenities(fit = True)
         self.data = self.add_stuff()
         self.fit_first()
-        self.data = self.transform_first()
+        self.data = self.transform_first(fit = True)
         self.fit_second()
         self.data = self.transform_second()
         self.fit_third()
@@ -775,21 +775,53 @@ class Wrangler:
         self.data = self.preprocess()
         self.data = self.add_stuff()
         self.data = self.process_amenities(fit = False)
-        self.data = self.transform_first()
+        self.data = self.transform_first(fit = False)
         self.data = self.transform_second()
         self.data, price = self.transform_third(log_transform, drop_id)       
         return self.data, price
 
-    
+    def fit_transform_dendro(self, X, log_transform = True, drop_id = True):
+        print('-'*30)
+        print('Fit and Transform data...')
+        print('-'*30)
+        self.data = X
+        self.data = self.preprocess()
+        self.data = self.process_amenities(fit = True)
+        self.data = self.add_stuff()
+        self.fit_first()
+        self.data = self.transform_first(fit = True)
+        self.fit_third()
+        self.data, price = self.transform_third(log_transform, drop_id)
+        return self.data, price
+        
+    def transform_dendro(self, X, log_transform = True, drop_id = True):
+        print('-'*30)
+        print('Transform data...')
+        print('-'*30)
+        self.data = X
+        self.data = self.preprocess()
+        self.data = self.add_stuff()
+        self.data = self.process_amenities(fit = False)
+        self.data = self.transform_first(fit = False)
+        self.data, price = self.transform_third(log_transform, drop_id)       
+        return self.data, price
 
 
-def load_data(random_seed = 123, test_split = 0.2, val_split = 0.1):
+def load_data(random_seed = 123, test_split = 0.2, val_split = 0.1, for_dendro = False):
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     listings = pd.read_csv(url_listing)
     X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
     X_train, X_val = train_test_split(X_train, random_state = random_seed, test_size = val_split)
 
     wrangler = Wrangler()
+    
+    if for_dendro:
+        X_train, y_train = wrangler.fit_transform_dendro(X_train)
+        X_test, y_test = wrangler.transform_dendro(X_test)
+        X_val, y_val = wrangler.transform_dendro(X_val)
+        return X_train, X_test, X_val, y_train, y_test, y_val
+
+    
     X_train, y_train = wrangler.fit_transform(X_train)
     X_test, y_test = wrangler.transform(X_test)
     X_val, y_val = wrangler.transform(X_val)
