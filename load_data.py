@@ -773,8 +773,8 @@ class Wrangler:
         print('-'*30)
         self.data = X
         self.data = self.preprocess()
-        self.data = self.add_stuff()
         self.data = self.process_amenities(fit = False)
+        self.data = self.add_stuff()
         self.data = self.transform_first(fit = False)
         self.data = self.transform_second()
         self.data, price = self.transform_third(log_transform, drop_id)       
@@ -800,8 +800,8 @@ class Wrangler:
         print('-'*30)
         self.data = X
         self.data = self.preprocess()
-        self.data = self.add_stuff()
         self.data = self.process_amenities(fit = False)
+        self.data = self.add_stuff()
         self.data = self.transform_first(fit = False)
         self.data, price = self.transform_third(log_transform, drop_id)       
         return self.data, price
