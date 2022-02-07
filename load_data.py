@@ -893,6 +893,16 @@ class Wrangler:
 def load_data(random_seed = 123, test_split = 0.2, val_split = 0.1, for_dendro = False):
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     listings = pd.read_csv(url_listing)
+    
+    # remove extreme prices
+    price = listings["price"]
+    price = price.str.replace("$","")
+    price = price.str.replace(",","")
+    price = price.astype(float)
+    filter = price < 500
+    listings = listings[filter]
+
+    
     X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
     X_train, X_val = train_test_split(X_train, random_state = random_seed, test_size = val_split)
 
