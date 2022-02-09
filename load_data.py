@@ -238,8 +238,8 @@ class Wrangler:
         # ADD IMAGE STUFF
         img_df = pd.read_csv("data/img_info.csv")
         self.data = self.data.merge(img_df, how = "left", on = "id")
+        self.data.drop("index", axis =1, inplace = True)
         print("Text, OpenStreet and image data loaded.")
-        
         return self.data
 
     def fit_first(self):
@@ -826,6 +826,8 @@ class Wrangler:
         self.data.drop("price", axis = 1, inplace = True)
 
         num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
+        if drop_id == False:
+            num_col.remove("id")
         self.data[num_col] = self.scaler_final.transform(self.data[num_col])
         
         return self.data, price
@@ -890,7 +892,7 @@ class Wrangler:
         return self.data, price
 
 
-def load_data(random_seed = 123, test_split = 0.2, val_split = 0.1, for_dendro = False):
+def load_data(random_seed = 123, test_split = 0.2, val_split = 0.1, for_dendro = False, drop_id = True):
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     listings = pd.read_csv(url_listing)
     
@@ -909,15 +911,15 @@ def load_data(random_seed = 123, test_split = 0.2, val_split = 0.1, for_dendro =
     wrangler = Wrangler()
     
     if for_dendro:
-        X_train, y_train = wrangler.fit_transform_dendro(X_train)
-        X_test, y_test = wrangler.transform_dendro(X_test)
-        X_val, y_val = wrangler.transform_dendro(X_val)
+        X_train, y_train = wrangler.fit_transform_dendro(X_train, drop_id=drop_id)
+        X_test, y_test = wrangler.transform_dendro(X_test, drop_id=drop_id)
+        X_val, y_val = wrangler.transform_dendro(X_val, drop_id=drop_id)
         return X_train, X_test, X_val, y_train, y_test, y_val
 
     
-    X_train, y_train = wrangler.fit_transform(X_train)
-    X_test, y_test = wrangler.transform(X_test)
-    X_val, y_val = wrangler.transform(X_val)
+    X_train, y_train = wrangler.fit_transform(X_train, drop_id=drop_id)
+    X_test, y_test = wrangler.transform(X_test, drop_id=drop_id)
+    X_val, y_val = wrangler.transform(X_val, drop_id=drop_id)
     
     return X_train, X_test, X_val, y_train, y_test, y_val
 
