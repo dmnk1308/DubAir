@@ -1,0 +1,17 @@
+od = 110
+fd = 114
+nds = 2
+rf = 2.5
+epo = 1
+
+model = tabnet.TabNetRegression(feature_columns, num_regressors=1,
+                                output_dim=od, feature_dim=fd, num_groups=1,
+                                num_decision_steps=nds, relaxation_factor=rf)
+
+model.compile(optimizer, loss=['mse', "mae"] , metrics=[R_squared, "mse", "mae"])
+
+hist_model = model.fit(train_dataset, epochs=epo, 
+                        validation_data=test_dataset, verbose=1,
+                        callbacks=[checkpoint])
+
+model.load_weights("TabNet_GS/best_model5.hdf5")
