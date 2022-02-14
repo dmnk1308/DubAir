@@ -1,8 +1,39 @@
+X_train, X_test, X_val, y_train, y_test, y_val = load_data(for_dendro = False)
+
+bin_col = [col for col in X_train if np.isin(X_train[col].unique(), [0, 1]).all()]
+num_col = [col for col in X_train if ~np.isin(X_train[col].unique(), [0, 1]).all()]
+col_names = bin_col + num_col
+
+train_size = int(X_train.shape[0] * 0.9)
+batch_size = int(X_train.shape[0] * 0.1)
+
+data_train = tf.data.Dataset.from_tensor_slices({"features": X_train, "price": y_train})
+data_train = data_train.shuffle(6000, seed = 13)
+train_dataset = data_train.take(len(X_train))
+train_dataset = train_dataset.map(transform)
+train_dataset = train_dataset.batch(batch_size)
+
+data_test = tf.data.Dataset.from_tensor_slices({"features": X_val, "price": y_val})
+test_dataset = data_test.take(len(X_val))
+test_dataset = test_dataset.map(transform)
+test_dataset = test_dataset.batch(batch_size)
+
+
+feature_columns = []
+
+for col in col_names:
+    feature_columns.append(tf.feature_column.numeric_column(col))
+
+
 od = 110
 fd = 114
 nds = 2
 rf = 2.5
 epo = 1
+
+lr = tf.keras.optimizers.schedules.ExponentialDecay(0.01, decay_steps=100, decay_rate=0.95, staircase=False)
+#lr = 0.01
+optimizer = tf.keras.optimizers.Adam(lr)
 
 model = tabnet.TabNetRegression(feature_columns, num_regressors=1,
                                 output_dim=od, feature_dim=fd, num_groups=1,
