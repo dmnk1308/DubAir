@@ -968,4 +968,14 @@ def load_data_munich(random_seed = 123, test_split = 0.2, val_split = 0.1, for_d
          X_munich, y_munich = wrangler.transform(listing_munich, drop_id=drop_id)
 
 
+    # transform munich prices to dublin level
+    mean_dub = y_train.mean()
+    std_dub = y_train.std()
+    
+    mean_mun = y_munich.mean()
+    std_mun = y_munich.std()
+    
+    y_munich_tmp = (y_munich - mean_mun)/std_mun
+    y_munich = (y_munich_tmp * std_dub)+mean_dub
+
     return X_train, X_munich, y_train, y_munich
