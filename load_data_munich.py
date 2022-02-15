@@ -1,12 +1,13 @@
-# %%
+import os
+os.chdir("/Users/dmnk/OneDrive - stud.uni-goettingen.de/Dokumente/3. Semester/SeminarDL/DubAir")
 import numpy as np
+from helpers import *
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
 import pandas as pd
 from sklearn.preprocessing import MultiLabelBinarizer, OneHotEncoder
 from sklearn.feature_selection import VarianceThreshold
-from helpers import *
 import ast
 import requests
 from bs4 import BeautifulSoup as bs
@@ -20,6 +21,8 @@ from scipy import stats
 import matplotlib.pyplot as plt
 from scipy.cluster import hierarchy
 from scipy.spatial.distance import squareform
+
+
 
 class Wrangler:
     
@@ -205,11 +208,10 @@ class Wrangler:
         self.data = pd.concat([self.data, am_df], axis = 1)
         # drop amenities columns
         self.data = self.data.drop("amenities", axis = 1)
-        am_df.to_csv("self.data.csv")
         
         return self.data
         
-    def add_stuff(self):
+    def add_stuff(self, munich = False):
         
         # ADD TEXT STUFF
         # lengths of text columns
@@ -217,24 +219,45 @@ class Wrangler:
         self.data["description_length"] = self.data["description"].astype(str).str.replace(" ","").str.len()
         self.data["neighborhood_overview_length"] = self.data["neighborhood_overview"].astype(str).str.replace(" ","").str.len()
         self.data["host_about_length"] = self.data["host_about"].astype(str).str.replace(" ","").str.len()
-        # read in pre-created frames
-        listings_reviews = pd.read_csv("text_data/listings_reviews.csv")
-        host_sent = pd.read_csv("text_data/host_sent.csv")
-        host_name = pd.read_csv("text_data/host_name.csv")
-        host_sent = host_sent.drop(host_sent.columns[0], axis=1)
-        host_name = host_name.drop(host_name.columns[0], axis=1)        
-        listings_reviews = listings_reviews.drop(listings_reviews.columns[0], axis=1)
+       
+        if munich == True:
+            # read in pre-created frames
+            listings_reviews = pd.read_csv("munich/listings_reviews_munich.csv")
+            host_sent = pd.read_csv("munich/host_sent_munich.csv")
+            host_name = pd.read_csv("munich/host_name_munich.csv")
+            host_sent = host_sent.drop(host_sent.columns[0], axis=1)
+            host_name = host_name.drop(host_name.columns[0], axis=1)        
+            listings_reviews = listings_reviews.drop(listings_reviews.columns[0], axis=1)
 
-        # add to listings
-        self.data = pd.merge(self.data, listings_reviews, on="id", how="left")
-        host_sent = pd.concat([host_sent, host_name], axis=1)
-        self.data = pd.merge(self.data, host_sent, on="id", how="left")
+            # add to listings
+            self.data = pd.merge(self.data, listings_reviews, on="id", how="left")
+            host_sent = pd.concat([host_sent, host_name], axis=1)
+            self.data = pd.merge(self.data, host_sent, on="id", how="left")
 
-        # ADD OSM STUFF
-        listings_osm = pd.read_csv("StreetData.csv")
-        listings_osm = listings_osm.drop(listings_osm.columns[0], axis=1)
-        self.data = pd.merge(self.data, listings_osm, on="id", how="left")
-        
+            # ADD OSM STUFF
+            listings_osm = pd.read_csv("munich/StreetData_munich.csv")
+            listings_osm = listings_osm.drop(listings_osm.columns[0], axis=1)
+            self.data = pd.merge(self.data, listings_osm, on="id", how="left")
+    
+        if munich == False:
+            # read in pre-created frames
+            listings_reviews = pd.read_csv("text_data/listings_reviews.csv")
+            host_sent = pd.read_csv("text_data/host_sent.csv")
+            host_name = pd.read_csv("text_data/host_name.csv")
+            host_sent = host_sent.drop(host_sent.columns[0], axis=1)
+            host_name = host_name.drop(host_name.columns[0], axis=1)        
+            listings_reviews = listings_reviews.drop(listings_reviews.columns[0], axis=1)
+
+            # add to listings
+            self.data = pd.merge(self.data, listings_reviews, on="id", how="left")
+            host_sent = pd.concat([host_sent, host_name], axis=1)
+            self.data = pd.merge(self.data, host_sent, on="id", how="left")
+
+            # ADD OSM STUFF
+            listings_osm = pd.read_csv("StreetData.csv")
+            listings_osm = listings_osm.drop(listings_osm.columns[0], axis=1)
+            self.data = pd.merge(self.data, listings_osm, on="id", how="left")
+            
         # ADD IMAGE STUFF
         img_df = pd.read_csv("data/img_info.csv")
         self.data = self.data.merge(img_df, how = "left", on = "id")
@@ -244,7 +267,6 @@ class Wrangler:
 
     def fit_first(self):
         # IMPUTATION STUFF
-        
         # FIT MODEL FOR BEDS
         # accomodates and beds are quite linear
         # So let us estimate linear models and predict, for beds
@@ -365,7 +387,7 @@ class Wrangler:
 
         return self
     
-    def transform_first(self, fit = True):   
+    def transform_first(self, fit = True, munich = False):   
         # CLEAN HOST LOCATION
         country_abr = pd.read_csv("https://gist.githubusercontent.com/radcliff/f09c0f88344a7fcef373/raw/2753c482ad091c54b1822288ad2e4811c021d8ec/wikipedia-iso-country-codes.csv")
         country_list = list(country_abr.iloc[:,0])
@@ -409,9 +431,15 @@ class Wrangler:
         ind = self.data[self.data["reviews_per_month"].isna()]["reviews_per_month"].index
         self.data.loc[ind, "reviews_per_month"] = self.data.loc[ind, "number_of_reviews"]
 
-        # If the host_location is not given, they are probably in Ireland
-        ind = self.data[self.data["host_location_country"].isna()]["host_location_country"].index
-        self.data.loc[ind, "host_location_country"] = "Ireland"
+        if munich:
+            # If the host_location is not given, they are probably in Germany
+            ind = self.data[self.data["host_location_country"].isna()]["host_location_country"].index
+            self.data.loc[ind, "host_location_country"] = "Germany"
+            
+        else:
+            # If the host_location is not given, they are probably in Ireland
+            ind = self.data[self.data["host_location_country"].isna()]["host_location_country"].index
+            self.data.loc[ind, "host_location_country"] = "Ireland"
 
         ## Some webscraping for host-variables -> shall be the same profiles
         ind_s = self.data[self.data["host_name"].isna()]["host_name"].index
@@ -466,14 +494,18 @@ class Wrangler:
         # IMPUTATION TEXT STUFF
         for j,i in enumerate(self.text_var):
             self.data[i].fillna(self.means_text[j], inplace=True)
-                              
+                       
         # IMPUTATION IMAGE STUFF
         img_df = pd.read_csv("data/img_info.csv")       
         self.room_cols = ["no_img_bathroom","no_img_bedroom","no_img_dining","no_img_hallway","no_img_kitchen","no_img_living","no_img_others"] #"no_img_balcony",
         self.data["count"] = self.data["count"].fillna(0)
         self.data["brightness"] = self.data["brightness"].fillna(self.mean_brightness)
         self.data["contrast"] = self.data["contrast"].fillna(self.mean_contrast)
-        self.data[self.room_cols] = self.data[self.room_cols].fillna(0)
+        if munich:
+            for i in self.room_cols:
+                self.data[i] = img_df[i].mean()
+        else:
+            self.data[self.room_cols] = self.data[self.room_cols].fillna(0)
         
         # ONE HOT
         self.data["bath_number"] = np.round(self.data["bath_number"], 0).astype(int)
@@ -500,19 +532,23 @@ class Wrangler:
             self.data[i] = pd.Series([j.days for j in list(self.data[i])])
         
         # VARIANCE THRESHOLD
-        bin_col = [col for col in self.data if np.isin(self.data[col].unique(), [0, 1]).all()]
-        num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
-        binary_df = self.data.filter(bin_col)
+       
+        
         if fit:
+            bin_col = [col for col in self.data if np.isin(self.data[col].unique(), [0, 1]).all()]
+            num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
+            binary_df = self.data.filter(bin_col)
             sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
             sel.feature_names_in_ = binary_df.columns
             self.variance_threshold = sel.fit(binary_df)
-        binary_col = self.variance_threshold.get_feature_names_out()
-        print(str(len(binary_df.columns) - len(binary_col)) + " binary variables have been removed due to close zero-variance.")
-        binary_df = binary_df.filter(binary_col)
-        all_col = list(binary_col) + list(num_col)
-        self.data = self.data.filter(all_col)       
+            binary_col = self.variance_threshold.get_feature_names_out()
+            all_col = binary_col.tolist() + num_col
+            all_col = np.unique(np.array(all_col)).tolist()        
+            self.all_col_var = all_col
+        print(str(len(self.data.columns) - len(self.all_col_var)) + " binary variables have been removed due to close zero-variance.")
         
+        self.data = self.data.filter(self.all_col_var)  
+
         # DROP
         self.data = self.data.drop(["host_location","host_id", "host_url", "name", "description", "neighborhood_overview", "host_name", "host_about"], axis = 1)
 
@@ -526,7 +562,6 @@ class Wrangler:
         return self.data
     
     def fit_second(self):
-
         # PCAs FIT
         self.city_life = ["nightclubs", "sex_amenities", "bicycle_rentals", "casinos", "university",     
                           "theatres_artscentre", "library", "taxi", "fast_foods", "restaurants", "bars",
@@ -642,7 +677,6 @@ class Wrangler:
         return self 
     
     def transform_second(self):
-
         # PCA TRANSFORMS
         city_life_df = self.scaler_pca_city_life.transform(self.data[self.city_life])
         city_pcas = self.pca_city.transform(city_life_df)
@@ -858,8 +892,8 @@ class Wrangler:
         self.data = X
         self.data = self.preprocess()
         self.data = self.process_amenities(fit = False)
-        self.data = self.add_stuff()
-        self.data = self.transform_first(fit = False)
+        self.data = self.add_stuff(munich = True)
+        self.data = self.transform_first(fit = False, munich = True)
         self.data = self.transform_second()
         self.data, price = self.transform_third(log_transform, drop_id)       
         self.data.columns = self.data.columns.str.replace(" ","_")       
@@ -887,14 +921,14 @@ class Wrangler:
         self.data = X
         self.data = self.preprocess()
         self.data = self.process_amenities(fit = False)
-        self.data = self.add_stuff()
-        self.data = self.transform_first(fit = False)
+        self.data = self.add_stuff(munich = True)
+        self.data = self.transform_first(fit = False, munich = True)
         self.data, price = self.transform_third(log_transform, drop_id, standardize = standardize)
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
-
-
-def load_data(random_seed = 123, test_split = 0.2, val_split = 0.1, for_dendro = False, drop_id = True, standardize = True):
+    
+    
+def load_data_munich(random_seed = 123, test_split = 0.2, val_split = 0.1, for_dendro = False, drop_id = True, standardize = True):
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     listings = pd.read_csv(url_listing)
     
@@ -905,23 +939,33 @@ def load_data(random_seed = 123, test_split = 0.2, val_split = 0.1, for_dendro =
     price = price.astype(float)
     filter = price < 500
     listings = listings[filter]
-
+    wrangler = Wrangler()
     
     X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
     X_train, X_val = train_test_split(X_train, random_state = random_seed, test_size = val_split)
-
-    wrangler = Wrangler()
     
     if for_dendro:
         X_train, y_train = wrangler.fit_transform_dendro(X_train, drop_id=drop_id, standardize=standardize)
-        X_test, y_test = wrangler.transform_dendro(X_test, drop_id=drop_id, standardize=standardize)
-        X_val, y_val = wrangler.transform_dendro(X_val, drop_id=drop_id, standardize=standardize)
-        return X_train, X_test, X_val, y_train, y_test, y_val
+  
+    else :
+        X_train, y_train = wrangler.fit_transform(X_train, drop_id=drop_id)
+ 
+    url_listing = "http://data.insideairbnb.com/germany/bv/munich/2021-12-24/data/listings.csv.gz"
+    listing_munich = pd.read_csv(url_listing)
 
+    # remove extreme prices
+    price = listing_munich["price"]
+    price = price.str.replace("$","")
+    price = price.str.replace(",","")
+    price = price.astype(float)
+    filter = price < 500
+    listing_munich = listing_munich[filter]
     
-    X_train, y_train = wrangler.fit_transform(X_train, drop_id=drop_id)
-    X_test, y_test = wrangler.transform(X_test, drop_id=drop_id)
-    X_val, y_val = wrangler.transform(X_val, drop_id=drop_id)
-    
-    return X_train, X_test, X_val, y_train, y_test, y_val
+    if for_dendro:
+        X_munich, y_munich = wrangler.transform_dendro(listing_munich, drop_id=drop_id, standardize=standardize)
+  
+    else :
+         X_munich, y_munich = wrangler.transform(listing_munich, drop_id=drop_id)
 
+
+    return X_train, X_munich, y_train, y_munich
