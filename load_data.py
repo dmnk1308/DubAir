@@ -737,35 +737,47 @@ class Wrangler:
         self.data = drop_col(self.data, self.img_no, regex = False)
                 
         # DROP DUE TO CORRELATION  
-        # keep Dryer available
-        self.data = drop_col(self.data, ["Washer_available"], regex = False) 
-        # no good PCA, keep Shampoo_Conditioner_available
-        self.data = drop_col(self.data, ["Hangers", "Hair dryer", "Iron"], regex = False) 
-        # keep Washer available, Kitchen in PCA
-        self.data = drop_col(self.data, ["Smoke alarm", "host_location_country_Ireland"], regex = False) 
-        # keep fire extinguisher
-        self.data = drop_col(self.data, ["First aid kit"], regex = False) 
-        # keep Bed linens
-        self.data = drop_col(self.data, ["Hot water"], regex = False) 
-        # keep Private Entrance
-        self.data = drop_col(self.data, ["Cable TV", "Indoor fireplace"], regex = False) 
-        # keep Safe_available
-        self.data = drop_col(self.data, ["Paid_parking", "Shower gel", "Bathtub", "Baby_friendly",], regex = False) 
-        # Dishwasher in KitchenPCA, keep garden_available
-        self.data = drop_col(self.data, ["Coffee_machine_available", "Patio_balcony_available"], regex = False) 
-        # keep Breakfast, bath private in bath PCA
-        self.data = drop_col(self.data, ["Host greets you"], regex = False) 
-        # keep last_review
-        self.data = drop_col(self.data, ["first_review"], regex = False) 
-        # PCA does not work that good, keep "review_scores_communication"
-        self.data = drop_col(self.data, ["review_scores_location", "review_scores_accuracy",   
-                                        "review_scores_cleanliness", "review_scores_value"], regex = False) 
-        # keep breakfast
-        self.data = drop_col(self.data, ["Lock on bedroom door"], regex = False) 
-        # keep Private Entrance
-        self.data = drop_col(self.data, ["Safe_available", "Garden_backyard_available"], regex = False) 
-        # will correlate with kitchen pca
-        self.data = drop_col(self.data, ["Bed linens"], regex = False) 
+        check_cols = ["Washer_available", "Hangers", "Hair dryer", "Iron","Smoke alarm", "host_location_country_Ireland","First aid kit",
+         "Hot water","Cable TV", "Indoor fireplace","Paid_parking", "Shower gel", "Bathtub", "Baby_friendly","Coffee_machine_available", "Patio_balcony_available",
+         "Host greets you", "first_review", "review_scores_location", "review_scores_accuracy", "review_scores_cleanliness", "review_scores_value",
+         "Lock on bedroom door","Safe_available", "Garden_backyard_available", "Bed linens"]
+        
+        
+        for i in check_cols:
+            if i in self.data.columns.values.tolist():
+                self.data.drop(i, axis = 1, inplace = True)
+                
+        
+        
+        # # keep Dryer available
+        # self.data = drop_col(self.data, ["Washer_available"], regex = False) 
+        # # no good PCA, keep Shampoo_Conditioner_available
+        # self.data = drop_col(self.data, ["Hangers", "Hair dryer", "Iron"], regex = False) 
+        # # keep Washer available, Kitchen in PCA
+        # self.data = drop_col(self.data, ["Smoke alarm", "host_location_country_Ireland"], regex = False) 
+        # # keep fire extinguisher
+        # self.data = drop_col(self.data, ["First aid kit"], regex = False) 
+        # # keep Bed linens
+        # self.data = drop_col(self.data, ["Hot water"], regex = False) 
+        # # keep Private Entrance
+        # self.data = drop_col(self.data, ["Cable TV", "Indoor fireplace"], regex = False) 
+        # # keep Safe_available
+        # self.data = drop_col(self.data, ["Paid_parking", "Shower gel", "Bathtub", "Baby_friendly"], regex = False) 
+        # # Dishwasher in KitchenPCA, keep garden_available
+        # self.data = drop_col(self.data, ["Coffee_machine_available", "Patio_balcony_available"], regex = False) 
+        # # keep Breakfast, bath private in bath PCA
+        # self.data = drop_col(self.data, ["Host greets you"], regex = False) 
+        # # keep last_review
+        # self.data = drop_col(self.data, ["first_review"], regex = False) 
+        # # PCA does not work that good, keep "review_scores_communication"
+        # self.data = drop_col(self.data, ["review_scores_location", "review_scores_accuracy",   
+        #                                 "review_scores_cleanliness", "review_scores_value"], regex = False) 
+        # # keep breakfast
+        # self.data = drop_col(self.data, ["Lock on bedroom door"], regex = False) 
+        # # keep Private Entrance
+        # self.data = drop_col(self.data, ["Safe_available", "Garden_backyard_available"], regex = False) 
+        # # will correlate with kitchen pca
+        # self.data = drop_col(self.data, ["Bed linens"], regex = False) 
         
         print("PCA's built and correlated features dropped.")
         
@@ -892,9 +904,75 @@ class Wrangler:
         self.data, price = self.transform_third(log_transform, drop_id, standardize = standardize)
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
+    
+    def fit_transform_dendro(self, X, log_transform = True, drop_id = True, standardize = True):
+        print('-'*30)
+        print('Fit and Transform data...')
+        print('-'*30)
+        self.data = X
+        self.data = self.preprocess()
+        self.data = self.process_amenities(fit = True)
+        self.data = self.add_stuff()
+        self.fit_first()
+        self.data = self.transform_first(fit = True)
+        self.fit_third()
+        self.data, price = self.transform_third(log_transform, drop_id, standardize = standardize)
+        self.data.columns = self.data.columns.str.replace(" ","_")       
+        return self.data, price
+
+#### FOR CV
+
+    def fit_transform_val_first(self, X, log_transform = True, drop_id = True):
+        print('-'*30)
+        print('Fit and Transform data...')
+        print('-'*30)
+        self.data = X
+        self.data = self.preprocess()
+        self.data = self.process_amenities(fit = True)
+        self.data = self.add_stuff()
+        return self.data
+    
+    def fit_transform_val_second(self, X, log_transform = True, drop_id = True):
+        print('-'*30)
+        print('Fit and Transform data...')
+        print('-'*30)
+        self.data = X
+        self.data = self.preprocess()
+        self.data = self.process_amenities(fit = False)
+        self.data = self.add_stuff()
+        self.fit_first()
+        self.data = self.transform_first(fit = True)
+        self.fit_second()
+        self.data = self.transform_second()
+        self.fit_third()
+        self.data, price = self.transform_third(log_transform, drop_id)
+        self.data.columns = self.data.columns.str.replace(" ","_")       
+        return self.data, price
+        
+    def fit_transform_dendro_val_first(self, X, log_transform = True, drop_id = True, standardize = True):
+        print('-'*30)
+        print('Fit and Transform data...')
+        print('-'*30)
+        self.data = X
+        self.data = self.preprocess()
+        self.data = self.process_amenities(fit = True)
+        self.data = self.add_stuff()
+        return self.data
+        
+    def fit_transform_dendro_val_second(self, X, log_transform = True, drop_id = True, standardize = True):    
+        self.data = X
+        self.data = self.preprocess()
+        self.data = self.process_amenities(fit = False)
+        self.data = self.add_stuff()    
+        self.fit_first()
+        self.data = self.transform_first(fit = True)
+        self.fit_third()
+        self.data, price = self.transform_third(log_transform, drop_id, standardize = standardize)
+        self.data.columns = self.data.columns.str.replace(" ","_")       
+        return self.data, price
 
 
-def load_data(random_seed = 123, test_split = 0.2, val_split = 0.1, for_dendro = False, drop_id = True, standardize = True):
+def load_data(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro = False, drop_id = True, standardize = True):
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     listings = pd.read_csv(url_listing)
     
@@ -923,5 +1001,46 @@ def load_data(random_seed = 123, test_split = 0.2, val_split = 0.1, for_dendro =
     X_test, y_test = wrangler.transform(X_test, drop_id=drop_id)
     X_val, y_val = wrangler.transform(X_val, drop_id=drop_id)
     
+    return X_train, X_test, X_val, y_train, y_test, y_val
+
+def load_data_cv(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro = False, drop_id = True, standardize = True, train_idx = None, val_idx = None):
+    url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
+    listings = pd.read_csv(url_listing)
+    
+    # remove extreme prices
+    price = listings["price"]
+    price = price.str.replace("$","")
+    price = price.str.replace(",","")
+    price = price.astype(float)
+    filter = price < 500
+    listings = listings[filter]
+    
+    X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
+    #X_train, X_val = train_test_split(X_train, random_state = random_seed, test_size = val_split)
+    X_train = X_train.reset_index(drop = True)
+    wrangler = Wrangler()
+
+    if for_dendro:
+        # First make everything possible with Train + Val
+        X_train = wrangler.fit_transform_dendro_val_first(X_train, drop_id=drop_id, standardize=standardize)
+        # Then use the CV index
+        X_val = X_train.iloc[val_idx,:]
+        X_val = X_val.reset_index(drop = True)
+        X_train = X_train.iloc[train_idx,:]
+        X_train = X_train.reset_index(drop = True)
+        # Then fit everything as before on training and transform val and test data
+        X_train, y_train = wrangler.fit_transform_dendro_val_second(X_train, drop_id=drop_id, standardize=standardize)
+        X_val, y_val = wrangler.transform_dendro(X_val, drop_id=drop_id, standardize=standardize)
+        X_test, y_test = wrangler.transform_dendro(X_test, drop_id=drop_id, standardize=standardize)
+        return X_train, X_test, X_val, y_train, y_test, y_val
+
+    wrangler.fit_transform_val_first(X_train, drop_id=drop_id)
+    X_val = X_train.iloc[val_idx,:]
+    X_val = X_val.reset_index(drop = True)
+    X_train = X_train.iloc[train_idx,:]
+    X_train = X_train.reset_index(drop = True)
+    X_train, y_train = wrangler.fit_transform_val_second(X_train, drop_id=drop_id)
+    X_val, y_val = wrangler.transform(X_val, drop_id=drop_id)
+    X_test, y_test = wrangler.transform(X_test, drop_id=drop_id)
     return X_train, X_test, X_val, y_train, y_test, y_val
 
