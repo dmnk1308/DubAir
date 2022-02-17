@@ -205,7 +205,6 @@ class Wrangler:
         self.data = pd.concat([self.data, am_df], axis = 1)
         # drop amenities columns
         self.data = self.data.drop("amenities", axis = 1)
-        am_df.to_csv("self.data.csv")
         
         return self.data
         
@@ -500,19 +499,39 @@ class Wrangler:
             self.data[i] = pd.Series([j.days for j in list(self.data[i])])
         
         # VARIANCE THRESHOLD
-        bin_col = [col for col in self.data if np.isin(self.data[col].unique(), [0, 1]).all()]
-        num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
-        binary_df = self.data.filter(bin_col)
+        # bin_col = [col for col in self.data if np.isin(self.data[col].unique(), [0, 1]).all()]
+        # num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
+        # binary_df = self.data.filter(bin_col)
+        # if fit == True:
+        #     sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
+        #     sel.feature_names_in_ = binary_df.columns
+        #     self.variance_threshold = sel.fit(binary_df)
+        # binary_col = self.variance_threshold.get_feature_names_out()
+        # print(str(len(binary_df.columns) - len(binary_col)) + " binary variables have been removed due to close zero-variance.")
+        # binary_df = binary_df.filter(binary_col)
+        # all_col = list(binary_col) + list(num_col)
+        # self.data = self.data.filter(all_col)       
+        
         if fit:
+            bin_col = [col for col in self.data if np.isin(self.data[col].unique(), [0, 1]).all()]
+            num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
+            binary_df = self.data.filter(bin_col)
             sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
             sel.feature_names_in_ = binary_df.columns
             self.variance_threshold = sel.fit(binary_df)
-        binary_col = self.variance_threshold.get_feature_names_out()
-        print(str(len(binary_df.columns) - len(binary_col)) + " binary variables have been removed due to close zero-variance.")
-        binary_df = binary_df.filter(binary_col)
-        all_col = list(binary_col) + list(num_col)
-        self.data = self.data.filter(all_col)       
-        
+            binary_col = self.variance_threshold.get_feature_names_out()
+            all_col = binary_col.tolist() + num_col
+            all_col = np.unique(np.array(all_col)).tolist()        
+            self.all_col_var = all_col
+            
+        c = 0
+        for i in self.data.columns.values.tolist():
+            if i not in self.all_col_var:
+                self.data.drop(i, axis = 1, inplace = True)
+                c += 1
+            
+        print(str(c) + " binary variables have been removed due to close zero-variance.")
+                
         # DROP
         self.data = self.data.drop(["host_location","host_id", "host_url", "name", "description", "neighborhood_overview", "host_name", "host_about"], axis = 1)
 
@@ -557,7 +576,7 @@ class Wrangler:
         # PCA for accommodation size
         self.acco = ["bedrooms_1", "bedrooms_2", "accommodates", "beds", "room_type_Entire home/apt", "room_type_Private room",
                      "bath_number_1", "bath_number_2", "bath_kind_Shared", "bath_kind_Private", "bath_kind_Normal",
-                     "property_type_Entire residential home", "property_type_Entire rental unit", "property_type_Others"]
+                     "property_type_Entire residential home", "property_type_Entire rental unit"]#, "property_type_Others"]
         scaler = StandardScaler()
         self.scaler_pca_acco = scaler.fit(self.data[self.acco])
         accommodation_size_df = self.scaler_pca_acco.transform(self.data[self.acco])
@@ -783,33 +802,33 @@ class Wrangler:
         
         return self.data
     
-    def fit_third(self):
-        
-        # T-TESTS
-        # get binary variables
-        bin_col = [col for col in self.data if (np.isin(self.data[col].unique(), [0, 1]).all() or np.isin(self.data[col].unique(), [0., 1.]).all())]
+    def fit_third(self, fit_listing = False):
+        if fit_listing == True:
+            # T-TESTS
+            # get binary variables
+            bin_col = [col for col in self.data if (np.isin(self.data[col].unique(), [0, 1]).all() or np.isin(self.data[col].unique(), [0., 1.]).all())]
 
-        stats_val = []
-        p_val = []
-        names = []
+            stats_val = []
+            p_val = []
+            names = []
 
-        price = self.data["price"]
-        price = price.str.replace("$","")
-        price = price.str.replace(",","")
-        price = price.astype(float)
-        price = np.log(price)
+            price = self.data["price"]
+            price = price.str.replace("$","")
+            price = price.str.replace(",","")
+            price = price.astype(float)
+            price = np.log(price)
 
-        p = price
-        for i in bin_col:
-            t_Test(self.data[i], p, stats_val, p_val, names)
-        
-        p_val_sig = []
-        for x in p_val:
-            p_val_sig.append(x < 0.05)
-        
-        insig = [x for x, y in zip(names, p_val_sig) if y == False]
-        self.insig = insig
-        
+            p = price
+            for i in bin_col:
+                t_Test(self.data[i], p, stats_val, p_val, names)
+            
+            p_val_sig = []
+            for x in p_val:
+                p_val_sig.append(x < 0.05)
+            
+            insig = [x for x, y in zip(names, p_val_sig) if y == False]
+            self.insig = insig
+            
         num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
         num_col.remove("price")
         num_col.remove("id")
@@ -821,7 +840,9 @@ class Wrangler:
     def transform_third(self, log_transform = True, drop_id = True, standardize = True):
         # T-TESTS
         if len(self.insig) > 0:
-            self.data = self.data.drop(self.insig, axis = 1)
+            for i in self.insig:
+                if i in self.data.columns.values.tolist():
+                    self.data.drop(i, axis = 1, inplace = True)
         print("Due to insignificant t-tests we drop:")
         print(self.insig)
         
@@ -852,10 +873,10 @@ class Wrangler:
         print('-'*30)
         self.data = X
         self.data = self.preprocess()
-        self.data = self.process_amenities(fit = True)
+        self.data = self.process_amenities(fit = False)
         self.data = self.add_stuff()
         self.fit_first()
-        self.data = self.transform_first(fit = True)
+        self.data = self.transform_first(fit = False)
         self.fit_second()
         self.data = self.transform_second()
         self.fit_third()
@@ -883,10 +904,10 @@ class Wrangler:
         print('-'*30)
         self.data = X
         self.data = self.preprocess()
-        self.data = self.process_amenities(fit = True)
+        self.data = self.process_amenities(fit = False)
         self.data = self.add_stuff()
         self.fit_first()
-        self.data = self.transform_first(fit = True)
+        self.data = self.transform_first(fit = False)
         self.fit_third()
         self.data, price = self.transform_third(log_transform, drop_id, standardize = standardize)
         self.data.columns = self.data.columns.str.replace(" ","_")       
@@ -911,10 +932,10 @@ class Wrangler:
         print('-'*30)
         self.data = X
         self.data = self.preprocess()
-        self.data = self.process_amenities(fit = True)
+        self.data = self.process_amenities(fit = False)
         self.data = self.add_stuff()
         self.fit_first()
-        self.data = self.transform_first(fit = True)
+        self.data = self.transform_first(fit = False)
         self.fit_third()
         self.data, price = self.transform_third(log_transform, drop_id, standardize = standardize)
         self.data.columns = self.data.columns.str.replace(" ","_")       
@@ -928,7 +949,7 @@ class Wrangler:
         print('-'*30)
         self.data = X
         self.data = self.preprocess()
-        self.data = self.process_amenities(fit = True)
+        self.data = self.process_amenities(fit = False)
         self.data = self.add_stuff()
         return self.data
     
@@ -941,7 +962,7 @@ class Wrangler:
         self.data = self.process_amenities(fit = False)
         self.data = self.add_stuff()
         self.fit_first()
-        self.data = self.transform_first(fit = True)
+        self.data = self.transform_first(fit = False)
         self.fit_second()
         self.data = self.transform_second()
         self.fit_third()
@@ -955,7 +976,7 @@ class Wrangler:
         print('-'*30)
         self.data = X
         self.data = self.preprocess()
-        self.data = self.process_amenities(fit = True)
+        self.data = self.process_amenities(fit = False)
         self.data = self.add_stuff()
         return self.data
         
@@ -965,7 +986,7 @@ class Wrangler:
         self.data = self.process_amenities(fit = False)
         self.data = self.add_stuff()    
         self.fit_first()
-        self.data = self.transform_first(fit = True)
+        self.data = self.transform_first(fit = False)
         self.fit_third()
         self.data, price = self.transform_third(log_transform, drop_id, standardize = standardize)
         self.data.columns = self.data.columns.str.replace(" ","_")       
@@ -984,11 +1005,21 @@ def load_data(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro =
     filter = price < 500
     listings = listings[filter]
 
+    wrangler = Wrangler()        
+    print('-'*30)
+    print('Fit listings data...')
+    print('-'*30)
+    wrangler.data = listings
+    wrangler.preprocess()
+    wrangler.process_amenities(fit = True)
+    wrangler.add_stuff()
+    wrangler.fit_first()
+    wrangler.transform_first(fit = True)
+    wrangler.fit_third(fit_listing = True)
     
     X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
     X_train, X_val = train_test_split(X_train, random_state = random_seed, test_size = val_split)
 
-    wrangler = Wrangler()
     
     if for_dendro:
         X_train, y_train = wrangler.fit_transform_dendro(X_train, drop_id=drop_id, standardize=standardize)
@@ -1015,14 +1046,24 @@ def load_data_cv(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendr
     filter = price < 500
     listings = listings[filter]
     
+    wrangler = Wrangler()        
+    print('-'*30)
+    print('Fit listings data...')
+    print('-'*30)
+    wrangler.data = listings
+    wrangler.preprocess()
+    wrangler.process_amenities(fit = True)
+    wrangler.add_stuff()
+    wrangler.fit_first()
+    wrangler.transform_first(fit = True)
+    wrangler.fit_third(fit_listing = True)
+    
     X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
-    #X_train, X_val = train_test_split(X_train, random_state = random_seed, test_size = val_split)
     X_train = X_train.reset_index(drop = True)
-    wrangler = Wrangler()
 
     if for_dendro:
         # First make everything possible with Train + Val
-        X_train = wrangler.fit_transform_dendro_val_first(X_train, drop_id=drop_id, standardize=standardize)
+        #X_train = wrangler.fit_transform_dendro_val_first(X_train, drop_id=drop_id, standardize=standardize)
         # Then use the CV index
         X_val = X_train.iloc[val_idx,:]
         X_val = X_val.reset_index(drop = True)
@@ -1034,7 +1075,7 @@ def load_data_cv(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendr
         X_test, y_test = wrangler.transform_dendro(X_test, drop_id=drop_id, standardize=standardize)
         return X_train, X_test, X_val, y_train, y_test, y_val
 
-    wrangler.fit_transform_val_first(X_train, drop_id=drop_id)
+    #wrangler.fit_transform_val_first(X_train, drop_id=drop_id)
     X_val = X_train.iloc[val_idx,:]
     X_val = X_val.reset_index(drop = True)
     X_train = X_train.iloc[train_idx,:]
