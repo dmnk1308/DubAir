@@ -547,7 +547,7 @@ class Wrangler:
     def fit_second(self):
 
         # PCAs FIT
-        self.city_life = ["nightclubs", "sex_amenities", "bicycle_rentals", "casinos", "university",     
+        self.city_life = ["nightclubs", "sex_amenities", "bicycle_rentals", "casinos", "university", "kiosks",
                           "theatres_artscentre", "library", "taxi", "fast_foods", "restaurants", "bars",
                           "cafes", "malls", "cinemas", "supermarkets", "bus_train_tram_station", "social_amenities"]
         scaler = StandardScaler()
@@ -556,7 +556,7 @@ class Wrangler:
         self.pca_city = PCA(n_components = 5).fit(city_life_df)
         
         # PCA for touristic and travel
-        self.travel_touristic = ["neighbourhood_cleansed_Dublin City", "in_city", "nearest_sight", "mean_dist_sight", 
+        self.travel_touristic = ["neighbourhood_cleansed_Dublin_City", "in_city", "nearest_sight", "mean_dist_sight", 
                                  "2nd_nearest_sight", "3rd_nearest_sight", "nearest_travel_poss", "mean_dist_travel"]
 
         scaler = StandardScaler()
@@ -565,27 +565,31 @@ class Wrangler:
         self.pca_travel = PCA(n_components = 1).fit(travel_touristic_df)
 
         # PCA for kitchen + equipment
-        self.kitchen = ["Microwave", "Dishes and silverware", "Refridgerator_available", "Dishwasher",
-                        "Stoves_available", "Cooking basics", "Oven_available", "Kitchen_available"]
+        self.kitchen = ["Microwave", "Dishes_and_silverware", "Refridgerator_available", "Dishwasher",
+                        "Stoves_available", "Cooking_basics", "Oven_available", "Kitchen_available",
+                        "Hot_water"]
 
         scaler = StandardScaler()
         self.scaler_pca_kitchen = scaler.fit(self.data[self.kitchen])
         kitchen_df = self.scaler_pca_kitchen.transform(self.data[self.kitchen])
-        self.pca_kitchen = PCA(n_components = 4).fit(kitchen_df)
+        self.pca_kitchen = PCA(n_components = 6).fit(kitchen_df)
 
         # PCA for accommodation size
-        self.acco = ["bedrooms_1", "bedrooms_2", "accommodates", "beds", "room_type_Entire home/apt", "room_type_Private room",
-                     "bath_number_1", "bath_number_2", "bath_kind_Shared", "bath_kind_Private", "bath_kind_Normal",
-                     "property_type_Entire residential home", "property_type_Entire rental unit"]#, "property_type_Others"]
+        self.acco = ["room_type_Private_room", "room_type_Entire_home/apt", 
+                    "bath_number_1", "bath_number_2", "bath_kind_Shared", "bath_kind_Private", "bath_kind_Normal",
+                    "bedrooms_1", "bedrooms_2", "accommodates", "beds", 
+                    "property_type_Private_room_in_residential_home", "property_type_Entire_rental_unit",
+                    "property_type_Private_room_in_rental_unit", "property_type_Entire_residential_home"]
+
         scaler = StandardScaler()
         self.scaler_pca_acco = scaler.fit(self.data[self.acco])
         accommodation_size_df = self.scaler_pca_acco.transform(self.data[self.acco])
-        self.pca_acco_size = PCA(n_components = 6).fit(accommodation_size_df)
+        self.pca_acco_size = PCA(n_components = 7).fit(accommodation_size_df)
         
         # PCA for host listings counts
-        self.host_listings = ["calculated_host_listings_count", "host_listings_count", 
-                              "calculated_host_listings_count_private_rooms", "calculated_host_listings_count_shared_rooms",  
-                              "calculated_host_listings_count_entire_homes"]
+        self.host_listings = ["calculated_host_listings_count", "host_listings_count", "calculated_host_listings_count_private_rooms",
+                              "calculated_host_listings_count_entire_homes", "calculated_host_listings_count_shared_rooms"]
+
         scaler = StandardScaler()
         self.scaler_pca_host = scaler.fit(self.data[self.host_listings])
         host_listings_df = self.scaler_pca_host.transform(self.data[self.host_listings])
@@ -607,7 +611,7 @@ class Wrangler:
 
         # PCA for review total score
         self.review_total_scores = ["review_scores_rating", "mean_compound", "most_pos_compound", "mean_positivity",
-                                    "mean_neutrality", "mean_negativity", "most_neg_compound", "prop_of_neg_comp"]
+                                    "mean_neutrality", "mean_negativity", "prop_of_neg_comp", "mean_review_length"] # "most_neg_compound", 
         scaler = StandardScaler()
         self.scaler_pca_review = scaler.fit(self.data[self.review_total_scores])
         review_total_scores_df = self.scaler_pca_review.transform(self.data[self.review_total_scores])
@@ -615,7 +619,7 @@ class Wrangler:
 
         # PCA for maximum nights
         self.max_nights = ["maximum_nights", "minimum_maximum_nights", "maximum_maximum_nights", 
-                           "maximum_nights_avg_ntm", "Long term stays allowed"]
+                            "maximum_nights_avg_ntm", "Long_term_stays_allowed"]
         scaler = StandardScaler()
         self.scaler_pca_max_nights = scaler.fit(self.data[self.max_nights])
         max_nights_df = self.scaler_pca_max_nights.transform(self.data[self.max_nights])
@@ -651,7 +655,7 @@ class Wrangler:
 
         # PCAs for image numbers
         self.img_no = ["no_img_others", "no_img_hallway", "no_img_dining", "no_img_bathroom", "count", 
-                       "no_img_bedroom", "no_img_kitchen", "no_img_living"]
+                        "no_img_bedroom", "no_img_kitchen", "no_img_living"]
         scaler = StandardScaler()
         self.scaler_pca_img_no = scaler.fit(self.data[self.img_no])
         img_no_df = self.scaler_pca_img_no.transform(self.data[self.img_no])
@@ -682,6 +686,8 @@ class Wrangler:
         self.data["kitchen_pca2"] = kitchen_pcas[:,1]
         self.data["kitchen_pca3"] = kitchen_pcas[:,2]
         self.data["kitchen_pca4"] = kitchen_pcas[:,3]
+        self.data["kitchen_pca5"] = kitchen_pcas[:,4]
+        self.data["kitchen_pca6"] = kitchen_pcas[:,5]
         self.data = drop_col(self.data, self.kitchen, regex = False)
 
         accommodation_size_df = self.scaler_pca_acco.transform(self.data[self.acco])
@@ -692,6 +698,7 @@ class Wrangler:
         self.data["accommodation_size_pca4"] = acco_size_pcas[:, 3]
         self.data["accommodation_size_pca5"] = acco_size_pcas[:, 4]
         self.data["accommodation_size_pca6"] = acco_size_pcas[:, 5]
+        self.data["accommodation_size_pca7"] = acco_size_pcas[:, 6]
         self.data = drop_col(self.data, self.acco, regex = False)
 
         host_listings_df = self.scaler_pca_host.transform(self.data[self.host_listings])
