@@ -763,10 +763,12 @@ class Wrangler:
         self.data = drop_col(self.data, self.img_no, regex = False)
                 
         # DROP DUE TO CORRELATION  
-        check_cols = ["Washer_available", "Hangers", "Hair dryer", "Iron","Smoke alarm", "host_location_country_Ireland","First aid kit",
-         "Hot water","Cable TV", "Indoor fireplace","Paid_parking", "Shower gel", "Bathtub", "Baby_friendly","Coffee_machine_available", "Patio_balcony_available",
-         "Host greets you", "first_review", "review_scores_location", "review_scores_accuracy", "review_scores_cleanliness", "review_scores_value",
-         "Lock on bedroom door","Safe_available", "Garden_backyard_available", "Bed linens"]
+        check_cols = ["Washer_available", "Hangers", "Hair_dryer", "Iron", "Smoke_alarm",
+                      "First_aid_kit", "Paid_parking", "Shower_gel", "Bathtub", "Baby_friendly",
+                      "Coffee_machine_available", "Patio_balcony_available", "Host_greets_you",
+                      "first_review", "review_scores_accuracy", "review_scores_accuracy",           
+                      "review_scores_value", "Lock_on_bedroom_door", ["Safe_available", "Private_entrance",
+                      "Bed_linens", "contrast", "Cable_TV", "Indoor_fireplace", "Breakfast"]
         
         
         for i in check_cols:
