@@ -192,7 +192,7 @@ class Wrangler:
         am_df = in_one(am_df, ["Piano", "Ping pong table", "Kayak", "BBQ grill", "Bidet", "Bikes", "Sauna_available"], "Special_stuff", regex = False, sum = False, drop = True)
 
 
-        if fit:
+        if fit == True:
             sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
             sel.feature_names_in_ = am_df.columns
             self.variance_threshold_am = sel.fit(am_df)
@@ -200,9 +200,10 @@ class Wrangler:
         am_col = self.variance_threshold_am.get_feature_names_out()
         print(str(len(am_df.columns) - len(am_col)) + " amenities have been removed due to close zero-variance.")
         am_df = am_df.filter(am_col)
+        
         # join amenities with listings
-
         self.data = pd.concat([self.data, am_df], axis = 1)
+        
         # drop amenities columns
         self.data = self.data.drop("amenities", axis = 1)
         
@@ -241,7 +242,7 @@ class Wrangler:
         print("Text, OpenStreet and image data loaded.")
         return self.data
 
-    def fit_first(self):
+    def fit_first(self, fit_listing = False):
         # IMPUTATION STUFF
         
         # FIT MODEL FOR BEDS
@@ -353,18 +354,19 @@ class Wrangler:
         self.data.loc[ind, "bedrooms"] = round(predictions)          
         
         # ONE HOT
-        listings_fit = self.data.copy()
-        listings_fit["bath_number"] = np.round(listings_fit["bath_number"], 0).astype(int)
-        listings_fit["bath_number"] = np.where(listings_fit["bath_number"] > 3, 4, listings_fit["bath_number"]).astype(str)
-        listings_fit["bedrooms"] = np.round(listings_fit["bedrooms"], 0).astype(int)
-        listings_fit["bedrooms"] = np.where(listings_fit["bedrooms"] > 3, 4, listings_fit["bedrooms"]).astype(str)
-        self.one_hot_columns = ["bath_number", "bedrooms", "host_location_country", "neighbourhood_cleansed", "property_type", "room_type", "bath_kind"]        
-        self.one_hot = OneHotEncoder(handle_unknown="ignore")
-        self.one_hot.fit(listings_fit[self.one_hot_columns])
+        if fit_listing == True:
+            listings_fit = self.data.copy()
+            listings_fit["bath_number"] = np.round(listings_fit["bath_number"], 0).astype(int)
+            listings_fit["bath_number"] = np.where(listings_fit["bath_number"] > 3, 4, listings_fit["bath_number"]).astype(str)
+            listings_fit["bedrooms"] = np.round(listings_fit["bedrooms"], 0).astype(int)
+            listings_fit["bedrooms"] = np.where(listings_fit["bedrooms"] > 3, 4, listings_fit["bedrooms"]).astype(str)
+            self.one_hot_columns = ["bath_number", "bedrooms", "host_location_country", "neighbourhood_cleansed", "property_type", "room_type", "bath_kind"]        
+            self.one_hot = OneHotEncoder(handle_unknown="ignore")
+            self.one_hot.fit(listings_fit[self.one_hot_columns])
 
         return self
     
-    def transform_first(self, fit = True):   
+    def transform_first(self, fit = False):   
         # CLEAN HOST LOCATION
         country_abr = pd.read_csv("https://gist.githubusercontent.com/radcliff/f09c0f88344a7fcef373/raw/2753c482ad091c54b1822288ad2e4811c021d8ec/wikipedia-iso-country-codes.csv")
         country_list = list(country_abr.iloc[:,0])
@@ -512,7 +514,7 @@ class Wrangler:
         # all_col = list(binary_col) + list(num_col)
         # self.data = self.data.filter(all_col)       
         
-        if fit:
+        if fit == True:
             bin_col = [col for col in self.data if np.isin(self.data[col].unique(), [0, 1]).all()]
             num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
             binary_df = self.data.filter(bin_col)
@@ -523,7 +525,7 @@ class Wrangler:
             all_col = binary_col.tolist() + num_col
             all_col = np.unique(np.array(all_col)).tolist()        
             self.all_col_var = all_col
-            
+
         c = 0
         for i in self.data.columns.values.tolist():
             if i not in self.all_col_var:
@@ -541,11 +543,11 @@ class Wrangler:
         else:
             print("Imputation failed. There are NaN's left; here is where:")
             print(self.data.isna().sum()[self.data.isna().sum().values > 0])
+        self.data.columns = self.data.columns.str.replace(" ","_")  
 
         return self.data
     
     def fit_second(self):
-
         # PCAs FIT
         self.city_life = ["nightclubs", "sex_amenities", "bicycle_rentals", "casinos", "university", "kiosks",
                           "theatres_artscentre", "library", "taxi", "fast_foods", "restaurants", "bars",
@@ -947,6 +949,21 @@ class Wrangler:
         self.data, price = self.transform_third(log_transform, drop_id, standardize = standardize)
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
+    
+    def fit_listings(self, X, log_transform = True, drop_id = True, standardize = True):
+        print('-'*30)
+        print('Fit listings...')
+        print('-'*30)
+        self.data = X
+        self.data = self.preprocess()
+        self.data = self.process_amenities(fit = True)
+        self.data = self.add_stuff()
+        self.fit_first(fit_listing=True)
+        self.data = self.transform_first(fit = True)
+        self.fit_third(fit_listing = True)
+        self.data, price = self.transform_third(log_transform, drop_id, standardize = standardize)
+        self.data.columns = self.data.columns.str.replace(" ","_")       
+        return self.data, price
 
 #### FOR CV
 
@@ -1010,24 +1027,14 @@ def load_data(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro =
     price = price.str.replace(",","")
     price = price.astype(float)
     filter = price < 500
-    listings = listings[filter]
+    listings = listings[filter.values]
 
     wrangler = Wrangler()        
-    print('-'*30)
-    print('Fit listings data...')
-    print('-'*30)
-    wrangler.data = listings
-    wrangler.preprocess()
-    wrangler.process_amenities(fit = True)
-    wrangler.add_stuff()
-    wrangler.fit_first()
-    wrangler.transform_first(fit = True)
-    wrangler.fit_third(fit_listing = True)
-    
+    wrangler = wrangler.fit_listings(listings)
+        
     X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
     X_train, X_val = train_test_split(X_train, random_state = random_seed, test_size = val_split)
 
-    
     if for_dendro:
         X_train, y_train = wrangler.fit_transform_dendro(X_train, drop_id=drop_id, standardize=standardize)
         X_test, y_test = wrangler.transform_dendro(X_test, drop_id=drop_id, standardize=standardize)
@@ -1054,16 +1061,7 @@ def load_data_cv(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendr
     listings = listings[filter]
     
     wrangler = Wrangler()        
-    print('-'*30)
-    print('Fit listings data...')
-    print('-'*30)
-    wrangler.data = listings
-    wrangler.preprocess()
-    wrangler.process_amenities(fit = True)
-    wrangler.add_stuff()
-    wrangler.fit_first()
-    wrangler.transform_first(fit = True)
-    wrangler.fit_third(fit_listing = True)
+    wrangler = wrangler.fit_listings(listings)
     
     X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
     X_train = X_train.reset_index(drop = True)
