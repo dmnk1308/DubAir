@@ -1063,7 +1063,7 @@ def load_data_cv(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendr
     listings = listings[filter]
     
     wrangler = Wrangler()        
-    wrangler = wrangler.fit_listings(listings)
+    wrangler.fit_listings(listings)
     
     X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
     X_train = X_train.reset_index(drop = True)
