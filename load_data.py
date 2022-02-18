@@ -765,11 +765,11 @@ class Wrangler:
         self.data = drop_col(self.data, self.img_no, regex = False)
                 
         # DROP DUE TO CORRELATION  
-        check_cols = ["Washer_available", "Hangers", "Hair_dryer", "Iron", "Smoke_alarm",
+        check_cols =  ["Washer_available", "Hangers", "Hair_dryer", "Iron", "Smoke_alarm",
                       "First_aid_kit", "Paid_parking", "Shower_gel", "Bathtub", "Baby_friendly",
-                      "Coffee_machine_available", "Patio_balcony_available", "Host_greets_you",
+                      "Coffee_machine_available", "Patiwie kano_balcony_available", "Host_greets_you",
                       "first_review", "review_scores_accuracy", "review_scores_accuracy",           
-                      "review_scores_value", "Lock_on_bedroom_door", ["Safe_available", "Private_entrance",
+                      "review_scores_value", "Lock_on_bedroom_door", "Safe_available", "Private_entrance",
                       "Bed_linens", "contrast", "Cable_TV", "Indoor_fireplace", "Breakfast"]
         
         
@@ -1063,7 +1063,7 @@ def load_data_cv(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendr
     listings = listings[filter]
     
     wrangler = Wrangler()        
-    wrangler = wrangler.fit_listings(listings)
+    wrangler.fit_listings(listings)
     
     X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
     X_train = X_train.reset_index(drop = True)
