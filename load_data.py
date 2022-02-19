@@ -1266,7 +1266,7 @@ def load_data_munich_fold(fold, verbose = 0, for_dendro = False, standardize = F
 
     return X_munich, y_munich, X_munich_shap
 
-def load_data_fold(fold, verbose = 0, for_dendro = False, standardize = False):
+def load_data_fold(fold, verbose = 0, for_dendro = False, standardize = False, drop_id = True):
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     listings = pd.read_csv(url_listing)
     # remove extreme prices
@@ -1287,7 +1287,7 @@ def load_data_fold(fold, verbose = 0, for_dendro = False, standardize = False):
         if c == fold:
             break
         c += 1
-    X_train, X_test, X_val, y_train, y_test, y_val = load_data_cv(train_idx = t, val_idx = v, for_dendro=for_dendro, standardize = standardize)
+    X_train, X_test, X_val, y_train, y_test, y_val = load_data_cv(train_idx = t, val_idx = v, drop_id = drop_id, for_dendro=for_dendro, standardize = standardize)
 
     return X_train, X_test, X_val, y_train, y_test, y_val
 
