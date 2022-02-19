@@ -15,7 +15,7 @@ from scipy.stats import halfnorm
 import warnings
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 from scipy import stats
 import matplotlib.pyplot as plt
 from scipy.cluster import hierarchy
@@ -24,7 +24,7 @@ from scipy.spatial.distance import squareform
 class Wrangler:
     
     
-    def __init__(self):
+    def __init__(self, verbose = 0):
         self.relevant_variables = ["id", "name", "last_scraped", "description", "neighborhood_overview", "host_id", "host_url", "host_name", "host_since", "host_location",
                                 "host_about", "host_is_superhost", "host_listings_count", "host_has_profile_picture","host_identity_verified",
                                 "neighbourhood_cleansed",
@@ -69,6 +69,7 @@ class Wrangler:
                                 'calculated_host_listings_count_entire_homes', 
                                 'calculated_host_listings_count_private_rooms', 
                                 'calculated_host_listings_count_shared_rooms', "price"] 
+        self.verbose = verbose
         
     def preprocess(self):
         self.data = self.data.reset_index(drop = True)
@@ -198,7 +199,8 @@ class Wrangler:
             self.variance_threshold_am = sel.fit(am_df)
         
         am_col = self.variance_threshold_am.get_feature_names_out()
-        print(str(len(am_df.columns) - len(am_col)) + " amenities have been removed due to close zero-variance.")
+        if self.verbose > 0:
+            print(str(len(am_df.columns) - len(am_col)) + " amenities have been removed due to close zero-variance.")
         am_df = am_df.filter(am_col)
         
         # join amenities with listings
@@ -209,7 +211,7 @@ class Wrangler:
         
         return self.data
         
-    def add_stuff(self):
+    def add_stuff(self, munich = False):
         
         # ADD TEXT STUFF
         # lengths of text columns
@@ -217,29 +219,51 @@ class Wrangler:
         self.data["description_length"] = self.data["description"].astype(str).str.replace(" ","").str.len()
         self.data["neighborhood_overview_length"] = self.data["neighborhood_overview"].astype(str).str.replace(" ","").str.len()
         self.data["host_about_length"] = self.data["host_about"].astype(str).str.replace(" ","").str.len()
-        # read in pre-created frames
-        listings_reviews = pd.read_csv("text_data/listings_reviews.csv")
-        host_sent = pd.read_csv("text_data/host_sent.csv")
-        host_name = pd.read_csv("text_data/host_name.csv")
-        host_sent = host_sent.drop(host_sent.columns[0], axis=1)
-        host_name = host_name.drop(host_name.columns[0], axis=1)        
-        listings_reviews = listings_reviews.drop(listings_reviews.columns[0], axis=1)
-
-        # add to listings
-        self.data = pd.merge(self.data, listings_reviews, on="id", how="left")
-        host_sent = pd.concat([host_sent, host_name], axis=1)
-        self.data = pd.merge(self.data, host_sent, on="id", how="left")
-
-        # ADD OSM STUFF
-        listings_osm = pd.read_csv("StreetData.csv")
-        listings_osm = listings_osm.drop(listings_osm.columns[0], axis=1)
-        self.data = pd.merge(self.data, listings_osm, on="id", how="left")
         
+        if munich == True:
+            # read in pre-created frames
+            listings_reviews = pd.read_csv("munich/listings_reviews_munich.csv")
+            host_sent = pd.read_csv("munich/host_sent_munich.csv")
+            host_name = pd.read_csv("munich/host_name_munich.csv")
+            host_sent = host_sent.drop(host_sent.columns[0], axis=1)
+            host_name = host_name.drop(host_name.columns[0], axis=1)        
+            listings_reviews = listings_reviews.drop(listings_reviews.columns[0], axis=1)
+
+            # add to listings
+            self.data = pd.merge(self.data, listings_reviews, on="id", how="left")
+            host_sent = pd.concat([host_sent, host_name], axis=1)
+            self.data = pd.merge(self.data, host_sent, on="id", how="left")
+
+            # ADD OSM STUFF
+            listings_osm = pd.read_csv("munich/StreetData_munich.csv")
+            listings_osm = listings_osm.drop(listings_osm.columns[0], axis=1)
+            self.data = pd.merge(self.data, listings_osm, on="id", how="left")        
+        
+        else:
+            # read in pre-created frames
+            listings_reviews = pd.read_csv("text_data/listings_reviews.csv")
+            host_sent = pd.read_csv("text_data/host_sent.csv")
+            host_name = pd.read_csv("text_data/host_name.csv")
+            host_sent = host_sent.drop(host_sent.columns[0], axis=1)
+            host_name = host_name.drop(host_name.columns[0], axis=1)        
+            listings_reviews = listings_reviews.drop(listings_reviews.columns[0], axis=1)
+
+            # add to listings
+            self.data = pd.merge(self.data, listings_reviews, on="id", how="left")
+            host_sent = pd.concat([host_sent, host_name], axis=1)
+            self.data = pd.merge(self.data, host_sent, on="id", how="left")
+
+            # ADD OSM STUFF
+            listings_osm = pd.read_csv("StreetData.csv")
+            listings_osm = listings_osm.drop(listings_osm.columns[0], axis=1)
+            self.data = pd.merge(self.data, listings_osm, on="id", how="left")
+            
         # ADD IMAGE STUFF
         img_df = pd.read_csv("data/img_info.csv")
         self.data = self.data.merge(img_df, how = "left", on = "id")
         self.data.drop("index", axis =1, inplace = True)
-        print("Text, OpenStreet and image data loaded.")
+        if self.verbose > 0:
+            print("Text, OpenStreet and image data loaded.")
         return self.data
 
     def fit_first(self, fit_listing = False):
@@ -366,7 +390,7 @@ class Wrangler:
 
         return self
     
-    def transform_first(self, fit = False):   
+    def transform_first(self, fit = False, munich = False):   
         # CLEAN HOST LOCATION
         country_abr = pd.read_csv("https://gist.githubusercontent.com/radcliff/f09c0f88344a7fcef373/raw/2753c482ad091c54b1822288ad2e4811c021d8ec/wikipedia-iso-country-codes.csv")
         country_list = list(country_abr.iloc[:,0])
@@ -410,10 +434,16 @@ class Wrangler:
         ind = self.data[self.data["reviews_per_month"].isna()]["reviews_per_month"].index
         self.data.loc[ind, "reviews_per_month"] = self.data.loc[ind, "number_of_reviews"]
 
-        # If the host_location is not given, they are probably in Ireland
-        ind = self.data[self.data["host_location_country"].isna()]["host_location_country"].index
-        self.data.loc[ind, "host_location_country"] = "Ireland"
-
+        if munich:
+            # If the host_location is not given, they are probably in Germany
+            ind = self.data[self.data["host_location_country"].isna()]["host_location_country"].index
+            self.data.loc[ind, "host_location_country"] = "Germany"
+            
+        else:
+            # If the host_location is not given, they are probably in Ireland
+            ind = self.data[self.data["host_location_country"].isna()]["host_location_country"].index
+            self.data.loc[ind, "host_location_country"] = "Ireland"
+            
         ## Some webscraping for host-variables -> shall be the same profiles
         ind_s = self.data[self.data["host_name"].isna()]["host_name"].index
         rel_URL = self.data.loc[ind_s, "host_url"]
@@ -531,18 +561,20 @@ class Wrangler:
             if i not in self.all_col_var:
                 self.data.drop(i, axis = 1, inplace = True)
                 c += 1
-            
-        print(str(c) + " binary variables have been removed due to close zero-variance.")
+        if self.verbose > 0:    
+            print(str(c) + " binary variables have been removed due to close zero-variance.")
                 
         # DROP
         self.data = self.data.drop(["host_location","host_id", "host_url", "name", "description", "neighborhood_overview", "host_name", "host_about"], axis = 1)
 
         # CHECK FOR NaNs
         if len(self.data.isna().sum()[self.data.isna().sum().values > 0]) == 0:
-            print("Imputation done. No NaN's are left in the data.")
+            if self.verbose > 0:
+                print("Imputation done. No NaN's are left in the data.")
         else:
-            print("Imputation failed. There are NaN's left; here is where:")
-            print(self.data.isna().sum()[self.data.isna().sum().values > 0])
+            if self.verbose > 0:               
+                print("Imputation failed. There are NaN's left; here is where:")
+                print(self.data.isna().sum()[self.data.isna().sum().values > 0])
         self.data.columns = self.data.columns.str.replace(" ","_")  
 
         return self.data
@@ -808,8 +840,8 @@ class Wrangler:
         # self.data = drop_col(self.data, ["Safe_available", "Garden_backyard_available"], regex = False) 
         # # will correlate with kitchen pca
         # self.data = drop_col(self.data, ["Bed linens"], regex = False) 
-        
-        print("PCA's built and correlated features dropped.")
+        if self.verbose > 0:
+            print("PCA's built and correlated features dropped.")
         
         return self.data
     
@@ -854,8 +886,9 @@ class Wrangler:
             for i in self.insig:
                 if i in self.data.columns.values.tolist():
                     self.data.drop(i, axis = 1, inplace = True)
-        print("Due to insignificant t-tests we drop:")
-        print(self.insig)
+        if self.verbose > 0:
+            print("Due to insignificant t-tests we drop:")
+            print(self.insig)
         
         price = self.data["price"]
         price = price.str.replace("$","")
@@ -879,9 +912,7 @@ class Wrangler:
         return self.data, price
 
     def fit_transform(self, X, log_transform = True, drop_id = True):
-        print('-'*30)
-        print('Fit and Transform data...')
-        print('-'*30)
+
         self.data = X
         self.data = self.preprocess()
         self.data = self.process_amenities(fit = False)
@@ -895,24 +926,18 @@ class Wrangler:
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
         
-    def transform(self, X, log_transform = True, drop_id = True):
-        print('-'*30)
-        print('Transform data...')
-        print('-'*30)
+    def transform(self, X, log_transform = True, drop_id = True, munich = False):
         self.data = X
         self.data = self.preprocess()
         self.data = self.process_amenities(fit = False)
-        self.data = self.add_stuff()
-        self.data = self.transform_first(fit = False)
+        self.data = self.add_stuff(munich = munich)
+        self.data = self.transform_first(fit = False, munich = munich)
         self.data = self.transform_second()
         self.data, price = self.transform_third(log_transform, drop_id)       
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
 
     def fit_transform_dendro(self, X, log_transform = True, drop_id = True, standardize = True):
-        print('-'*30)
-        print('Fit and Transform data...')
-        print('-'*30)
         self.data = X
         self.data = self.preprocess()
         self.data = self.process_amenities(fit = False)
@@ -924,23 +949,17 @@ class Wrangler:
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
         
-    def transform_dendro(self, X, log_transform = True, drop_id = True, standardize = True):
-        print('-'*30)
-        print('Transform data...')
-        print('-'*30)
+    def transform_dendro(self, X, log_transform = True, drop_id = True, standardize = True, munich = False):
         self.data = X
         self.data = self.preprocess()
         self.data = self.process_amenities(fit = False)
-        self.data = self.add_stuff()
-        self.data = self.transform_first(fit = False)
+        self.data = self.add_stuff(munich = munich)
+        self.data = self.transform_first(fit = False, munich = munich)
         self.data, price = self.transform_third(log_transform, drop_id, standardize = standardize)
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
     
     def fit_transform_dendro(self, X, log_transform = True, drop_id = True, standardize = True):
-        print('-'*30)
-        print('Fit and Transform data...')
-        print('-'*30)
         self.data = X
         self.data = self.preprocess()
         self.data = self.process_amenities(fit = False)
@@ -953,9 +972,6 @@ class Wrangler:
         return self.data, price
     
     def fit_listings(self, X, log_transform = True, drop_id = True, standardize = True):
-        print('-'*30)
-        print('Fit listings...')
-        print('-'*30)
         self.data = X
         self.data = self.preprocess()
         self.data = self.process_amenities(fit = True)
@@ -970,9 +986,6 @@ class Wrangler:
 #### FOR CV
 
     def fit_transform_val_first(self, X, log_transform = True, drop_id = True):
-        print('-'*30)
-        print('Fit and Transform data...')
-        print('-'*30)
         self.data = X
         self.data = self.preprocess()
         self.data = self.process_amenities(fit = False)
@@ -980,9 +993,6 @@ class Wrangler:
         return self.data
     
     def fit_transform_val_second(self, X, log_transform = True, drop_id = True):
-        print('-'*30)
-        print('Fit and Transform data...')
-        print('-'*30)
         self.data = X
         self.data = self.preprocess()
         self.data = self.process_amenities(fit = False)
@@ -997,9 +1007,6 @@ class Wrangler:
         return self.data, price
         
     def fit_transform_dendro_val_first(self, X, log_transform = True, drop_id = True, standardize = True):
-        print('-'*30)
-        print('Fit and Transform data...')
-        print('-'*30)
         self.data = X
         self.data = self.preprocess()
         self.data = self.process_amenities(fit = False)
@@ -1019,7 +1026,7 @@ class Wrangler:
         return self.data, price
 
 
-def load_data(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro = False, drop_id = True, standardize = True):
+def load_data(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro = False, drop_id = True, standardize = True, verbose = 0):
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     listings = pd.read_csv(url_listing)
     
@@ -1031,26 +1038,55 @@ def load_data(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro =
     filter = price < 500
     listings = listings[filter.values]
 
-    wrangler = Wrangler()        
-    wrangler = wrangler.fit_listings(listings)
+    wrangler = Wrangler(verbose=verbose)
+    if verbose > 0:
+        print('-'*30)
+        print('Fit listings...')
+        print('-'*30)        
+    wrangler.fit_listings(listings)
         
     X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
     X_train, X_val = train_test_split(X_train, random_state = random_seed, test_size = val_split)
 
     if for_dendro:
+        if verbose > 0:
+            print('-'*30)
+            print('Fit and transform...')
+            print('-'*30) 
         X_train, y_train = wrangler.fit_transform_dendro(X_train, drop_id=drop_id, standardize=standardize)
+        if verbose > 0:
+            print('-'*30)
+            print('Transform test data...')
+            print('-'*30) 
         X_test, y_test = wrangler.transform_dendro(X_test, drop_id=drop_id, standardize=standardize)
+        if verbose > 0:
+            print('-'*30)
+            print('Transform val data...')
+            print('-'*30) 
         X_val, y_val = wrangler.transform_dendro(X_val, drop_id=drop_id, standardize=standardize)
         return X_train, X_test, X_val, y_train, y_test, y_val
 
-    
+    if verbose > 0:
+        print('-'*30)
+        print('Fit and transform...')
+        print('-'*30)    
     X_train, y_train = wrangler.fit_transform(X_train, drop_id=drop_id)
+    
+    if verbose > 0:
+        print('-'*30)
+        print('Transform test data...')
+        print('-'*30)
     X_test, y_test = wrangler.transform(X_test, drop_id=drop_id)
+    
+    if verbose > 0:
+        print('-'*30)
+        print('Transform val data...')
+        print('-'*30)    
     X_val, y_val = wrangler.transform(X_val, drop_id=drop_id)
     
     return X_train, X_test, X_val, y_train, y_test, y_val
 
-def load_data_cv(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro = False, drop_id = True, standardize = True, train_idx = None, val_idx = None):
+def load_data_cv(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro = False, drop_id = True, standardize = True, train_idx = None, val_idx = None, verbose = 0):
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     listings = pd.read_csv(url_listing)
     
@@ -1062,7 +1098,11 @@ def load_data_cv(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendr
     filter = price < 500
     listings = listings[filter]
     
-    wrangler = Wrangler()        
+    wrangler = Wrangler(verbose=verbose)   
+    if verbose > 0:
+        print('-'*30)
+        print('Fit listings...')
+        print('-'*30)        
     wrangler.fit_listings(listings)
     
     X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
@@ -1077,18 +1117,177 @@ def load_data_cv(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendr
         X_train = X_train.iloc[train_idx,:]
         X_train = X_train.reset_index(drop = True)
         # Then fit everything as before on training and transform val and test data
+        if verbose > 0:
+            print('-'*30)
+            print('Fit and transform...')
+            print('-'*30)         
         X_train, y_train = wrangler.fit_transform_dendro_val_second(X_train, drop_id=drop_id, standardize=standardize)
+        if verbose > 0:
+            print('-'*30)
+            print('Transform val data...')
+            print('-'*30)  
         X_val, y_val = wrangler.transform_dendro(X_val, drop_id=drop_id, standardize=standardize)
+        if verbose > 0:
+            print('-'*30)
+            print('Transform test data...')
+            print('-'*30) 
         X_test, y_test = wrangler.transform_dendro(X_test, drop_id=drop_id, standardize=standardize)
         return X_train, X_test, X_val, y_train, y_test, y_val
 
-    #wrangler.fit_transform_val_first(X_train, drop_id=drop_id)
     X_val = X_train.iloc[val_idx,:]
     X_val = X_val.reset_index(drop = True)
     X_train = X_train.iloc[train_idx,:]
     X_train = X_train.reset_index(drop = True)
+    if verbose > 0:
+        print('-'*30)
+        print('Fit and transform...')
+        print('-'*30)       
     X_train, y_train = wrangler.fit_transform_val_second(X_train, drop_id=drop_id)
+    if verbose > 0:
+        print('-'*30)
+        print('Transform val data...')
+        print('-'*30)    
     X_val, y_val = wrangler.transform(X_val, drop_id=drop_id)
+    if verbose > 0:
+        print('-'*30)
+        print('Transform test data...')
+        print('-'*30)    
     X_test, y_test = wrangler.transform(X_test, drop_id=drop_id)
+    return X_train, X_test, X_val, y_train, y_test, y_val
+
+def load_data_munich(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro = False, drop_id = True, standardize = True, train_idx = None, val_idx = None, verbose = 0):
+    url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
+    listings = pd.read_csv(url_listing)
+    
+    # remove extreme prices
+    price = listings["price"]
+    price = price.str.replace("$","")
+    price = price.str.replace(",","")
+    price = price.astype(float)
+    filter = price < 500
+    listings = listings[filter]
+    
+    wrangler = Wrangler(verbose=verbose) 
+    if verbose > 0:
+        print('-'*30)
+        print('Fit listings...')
+        print('-'*30)               
+    wrangler.fit_listings(listings)
+    
+    X_train, X_test = train_test_split(listings, random_state = random_seed, test_size = test_split)
+    X_train = X_train.reset_index(drop = True)
+
+    if for_dendro:
+        # Then use the CV index
+        X_train = X_train.iloc[train_idx,:]
+        X_train = X_train.reset_index(drop = True)
+        # Then fit everything as before on training and transform val and test data
+        if verbose > 0:
+            print('-'*30)
+            print('Fit and transform...')
+            print('-'*30)         
+        X_train, y_train = wrangler.fit_transform_dendro_val_second(X_train, drop_id=drop_id, standardize=standardize)
+    else:
+        X_train = X_train.iloc[train_idx,:]
+        X_train = X_train.reset_index(drop = True)
+        if verbose > 0:
+            print('-'*30)
+            print('Fit and transform...')
+            print('-'*30)         
+        X_train, y_train = wrangler.fit_transform_val_second(X_train, drop_id=drop_id)
+
+    
+    # MUNICH
+    url_listing = "http://data.insideairbnb.com/germany/bv/munich/2021-12-24/data/listings.csv.gz"
+    listing_munich = pd.read_csv(url_listing)
+
+    # remove extreme prices
+    price = listing_munich["price"]
+    price = price.str.replace("$","")
+    price = price.str.replace(",","")
+    price = price.astype(float)
+    filter = price < 500
+    listing_munich = listing_munich[filter]
+    
+    if for_dendro:
+        if verbose > 0:
+            print('-'*30)
+            print('Transform Munich data...')
+            print('-'*30) 
+        X_munich, y_munich = wrangler.transform_dendro(listing_munich, drop_id=drop_id, standardize=standardize, munich = True)
+        X_munich = X_munich[X_train.columns.values.tolist()]
+    else :
+        if verbose > 0:
+            print('-'*30)
+            print('Transform Munich data...')
+            print('-'*30) 
+        X_munich, y_munich = wrangler.transform(listing_munich, drop_id=drop_id, munich = True)
+        X_munich = X_munich[X_train.columns.values.tolist()]
+
+
+    # transform munich prices to dublin level
+    mean_dub = y_train.mean()
+    std_dub = y_train.std()
+    
+    mean_mun = y_munich.mean()
+    std_mun = y_munich.std()
+    
+    y_munich_tmp = (y_munich - mean_mun)/std_mun
+    y_munich = (y_munich_tmp * std_dub)+mean_dub
+
+    return X_train, X_munich, y_train, y_munich
+
+
+def load_data_munich_fold(fold, verbose = 0, for_dendro = False, standardize = False):
+    url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
+    listings = pd.read_csv(url_listing)
+    # remove extreme prices
+    price = listings["price"]
+    price = price.str.replace("$","")
+    price = price.str.replace(",","")
+    price = price.astype(float)
+    filter = price < 500
+    listings = listings[filter]
+    X_train, _ = train_test_split(listings, random_state = 123, test_size = 0.2)
+    X_train = X_train.reset_index(drop = True)
+
+    kf = KFold(n_splits=5)
+
+    c = 1                       
+
+    for t, v in kf.split(X_train):
+        if c == fold:
+            break
+        c += 1
+    # munich data
+    _, X_munich, _, y_munich = load_data_munich(train_idx = t, val_idx = v, for_dendro=for_dendro, standardize = standardize, verbose = verbose)
+    # also unnormalized data
+    _, X_munich_shap, _, _ = load_data_munich(train_idx = t, val_idx = v, for_dendro=True, standardize=False, verbose = verbose)
+
+    return X_munich, y_munich, X_munich_shap
+
+def load_data_fold(fold, verbose = 0, for_dendro = False, standardize = False):
+    url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
+    listings = pd.read_csv(url_listing)
+    # remove extreme prices
+    price = listings["price"]
+    price = price.str.replace("$","")
+    price = price.str.replace(",","")
+    price = price.astype(float)
+    filter = price < 500
+    listings = listings[filter]
+    X_train, _ = train_test_split(listings, random_state = 123, test_size = 0.2)
+    X_train = X_train.reset_index(drop = True)
+
+    kf = KFold(n_splits=5)
+
+    c = 1                       
+
+    for t, v in kf.split(X_train):
+        if c == fold:
+            break
+        c += 1
+    X_train, X_test, X_val, y_train, y_test, y_val = load_data_cv(train_idx = t, val_idx = v, for_dendro=for_dendro, standardize = standardize)
+
     return X_train, X_test, X_val, y_train, y_test, y_val
 
