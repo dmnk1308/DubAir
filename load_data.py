@@ -1,4 +1,3 @@
-# %%
 import numpy as np
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -144,20 +143,6 @@ class Wrangler:
         am_df = drop_col(am_df, "(Clothing storage)")
         am_df = drop_col(am_df, "(^Fast wifi.)")    
 
-        # am_df = drop_col(am_df, ["Bedroom comforts", "Bread maker","Carbon monoxide alarm",
-        # "Children’s dinnerware", "Drying rack for clothing", "Fireplace guards", "Fire extinguisher", 
-        # "Hot water kettle", "Hangers", "Iron", "Keypad", "Pocket wifi", "Mini fridge",
-        # "Mosquito net", "Outlet covers", "Pour-over coffee", "Portable fans",
-        # "Portable heater", "Portable air conditioning", "Radiant heating", "Record player", 
-        # "Rice maker", "Shower gel", "Ski-in/Ski-out", "Table corner guards", "Trash compactor",
-        # "Wine glasses", "Window guards", "Baking sheet", "Barbecue utensils", "Boat slip",
-        # "Cable TV","Changing table","Cleaning products","EV charger","Ethernet connection", 
-        # "Extra pillows and blankets", "First aid kit","Laundromat nearby", "Room-darkening shades",
-        # "Smart lock", "Smoke alarm", "Toaster", "Microwave", "Essentials", "Bathroom essentials", "Fire pit", 
-        # "Lock on bedroom door", "Hot water", "Beach essentials", "Board games", "Building staff", 
-        # "Cooking basics", "Dining table", "Dishes and silverware", "Host greets you", "Luggage dropoff allowed", 
-        # "Self check-in", "Pets allowed", "Suitable for events", "Ceiling fan"], regex = False)
-
         # summarize in new columns which gives the availability
         am_df = in_one(am_df, "(.oven)|(^oven)", "Oven_available", regex = True, sum = False, drop = True)
         am_df = in_one(am_df, "(.stove)|(^stove)", "Stoves_available", regex = True, sum = False, drop = True)
@@ -192,12 +177,13 @@ class Wrangler:
         # sum up all luxury or extraordinary equipment
         am_df = in_one(am_df, ["Piano", "Ping pong table", "Kayak", "BBQ grill", "Bidet", "Bikes", "Sauna_available"], "Special_stuff", regex = False, sum = False, drop = True)
 
-
+        # only fit variance threshold for listings
         if fit == True:
             sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
             sel.feature_names_in_ = am_df.columns
             self.variance_threshold_am = sel.fit(am_df)
         
+        # filter out variables with low variance
         am_col = self.variance_threshold_am.get_feature_names_out()
         if self.verbose > 0:
             print(str(len(am_df.columns) - len(am_col)) + " amenities have been removed due to close zero-variance.")
@@ -268,7 +254,6 @@ class Wrangler:
 
     def fit_first(self, fit_listing = False):
         # IMPUTATION STUFF
-        
         # FIT MODEL FOR BEDS
         # accomodates and beds are quite linear
         # So let us estimate linear models and predict, for beds
@@ -299,47 +284,35 @@ class Wrangler:
         self.sd_reviews = sds    
         
         # HOST LOCATION
-        # clean host_location
+        # clean host_location 
         country_abr = pd.read_csv("https://gist.githubusercontent.com/radcliff/f09c0f88344a7fcef373/raw/2753c482ad091c54b1822288ad2e4811c021d8ec/wikipedia-iso-country-codes.csv")
         country_list = list(country_abr.iloc[:,0])
         abr_list = list(country_abr.iloc[:,1])
 
         self.data["host_location_country"] = self.data["host_location"].copy()
 
+        # if the country is mentioned in the host_location use this
         for i in list(country_list):
             fil = self.data["host_location"].str.contains(i, case = False, na = False)
             self.data.loc[fil,"host_location_country"] = str(i)
 
+        # if the country abbreveation is in the host_location use this to find out the country
         for i,j in enumerate(list(abr_list)):
             fil = self.data["host_location"].str.contains(str(j), case = True, na = False)
             self.data.loc[fil,"host_location_country"] = str(country_list[i])
 
+        # if there are less than 5 observations for a country label them as "others" save this list for the transformation for test and validation
         other_filter = self.data["host_location_country"].value_counts() <= 5
         self.country_list = list(self.data["host_location_country"].value_counts().index[other_filter])
-
         for i, j in enumerate(self.country_list):
             fil = self.data["host_location_country"].str.contains(j, case = True, na = False)
             self.data.loc[fil,"host_location_country"] = "Others"
+        # if there are coordinates of Dublin City label it with Ireland
         self.data.loc[self.data["host_location_country"] == "53.357852, -6.259787", "host_location_country"] = "Ireland"
         
-        # PIs FOR BINARY VARIABLES
-        ### Binary Stuff
-        # self.rest_var = ['Bathtub', 'Bed linens', 'Breakfast', 'Cleaning before checkout', 'Dishwasher',
-        #             'Elevator', 'Hair dryer', 'Indoor fireplace', 'Long term stays allowed',
-        #             'Private entrance', 'Security cameras on property', 'Single level home',
-        #             'Special_stuff', 'TV_available', 'Outdoor_stuff', 'Baby_friendly',
-        #             'sound_system_available', 'Oven_available', 'Stoves_available',
-        #             'Refridgerator_available', 'Body_soap_available',
-        #             'Garden_backyard_available', 'Free_parking',
-        #             'Paid_parking', 'Children_Entertainment', 'Workspace',
-        #             'Shampoo_Conditioner_available', 'Gym_available',
-        #             'Coffee_machine_available', 'Dryer_available', 'Washer_available',
-        #             'Hot_tub_available', 'Pool_available', 'Patio_balcony_available',
-        #             'Wifi_available', 'AC_available', 'heating_available',
-        #             'Kitchen_available', 'Safe_available', 'Water_location', "Game_consoles"]
-        
+        # identify all binary variables
         self.rest_var = [col for col in self.data if np.isin(self.data[col].unique(), [0, 1]).all()]
-
+        # compute the share of 1 of those binary variables and save them for the transform step
         pis = []
         for i in range(len(self.rest_var)):
             pis.append(np.nanmean(self.data[self.rest_var[i]]))
@@ -377,7 +350,7 @@ class Wrangler:
         prediction = np.where(predictions <= 0.5, 1, predictions)   
         self.data.loc[ind, "bedrooms"] = round(predictions)          
         
-        # ONE HOT
+        # Fit one hot encodings for categorical variabels. Transform the bathnumber and bedrooms number to categories up to 3 bathrooms/bedrooms and put the others in a separate category
         if fit_listing == True:
             listings_fit = self.data.copy()
             listings_fit["bath_number"] = np.round(listings_fit["bath_number"], 0).astype(int)
@@ -390,8 +363,10 @@ class Wrangler:
 
         return self
     
+    # Apply the fitted transformations above
     def transform_first(self, fit = False, munich = False):   
-        # CLEAN HOST LOCATION
+        
+        # CLEAN HOST LOCATION (as above only use the "others" countries stored in the class instance)
         country_abr = pd.read_csv("https://gist.githubusercontent.com/radcliff/f09c0f88344a7fcef373/raw/2753c482ad091c54b1822288ad2e4811c021d8ec/wikipedia-iso-country-codes.csv")
         country_list = list(country_abr.iloc[:,0])
         abr_list = list(country_abr.iloc[:,1])
@@ -462,7 +437,6 @@ class Wrangler:
                 name.append("Anonymous")
             else:
                 name.append(name_html[0].text[8:])
-
         self.data.loc[ind_s, "host_name"] = name
         self.data.loc[ind_s, "host_since"] = self.data.loc[ind_s, "first_review"]
     
@@ -528,22 +502,10 @@ class Wrangler:
         # We have a timedelta object in each cell now. We should convert it into an integer using its attribute .days
         date_col = date_col[1:]
         for i in date_col:
-            self.data[i] = pd.Series([j.days for j in list(self.data[i])])
+            self.data[i] = pd.Series([j.days for j in list(self.data[i])])  
         
-        # VARIANCE THRESHOLD
-        # bin_col = [col for col in self.data if np.isin(self.data[col].unique(), [0, 1]).all()]
-        # num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
-        # binary_df = self.data.filter(bin_col)
-        # if fit == True:
-        #     sel = VarianceThreshold(threshold=(.9 * (1 - .9)))
-        #     sel.feature_names_in_ = binary_df.columns
-        #     self.variance_threshold = sel.fit(binary_df)
-        # binary_col = self.variance_threshold.get_feature_names_out()
-        # print(str(len(binary_df.columns) - len(binary_col)) + " binary variables have been removed due to close zero-variance.")
-        # binary_df = binary_df.filter(binary_col)
-        # all_col = list(binary_col) + list(num_col)
-        # self.data = self.data.filter(all_col)       
-        
+        # For listings find all variables which at this point do not contain enough variance to be kept. 
+        # Need to place this here and not in fit function as imputations were required
         if fit == True:
             bin_col = [col for col in self.data if np.isin(self.data[col].unique(), [0, 1]).all()]
             num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
@@ -553,18 +515,21 @@ class Wrangler:
             self.variance_threshold = sel.fit(binary_df)
             binary_col = self.variance_threshold.get_feature_names_out()
             all_col = binary_col.tolist() + num_col
-            all_col = np.unique(np.array(all_col)).tolist()        
+            all_col = np.unique(np.array(all_col)).tolist()  
+            # save the list of variables we want to keep      
             self.all_col_var = all_col
 
         c = 0
+        # drop saved columns in every dataset routed through the transformations
         for i in self.data.columns.values.tolist():
             if i not in self.all_col_var:
                 self.data.drop(i, axis = 1, inplace = True)
                 c += 1
+        
         if self.verbose > 0:    
             print(str(c) + " binary variables have been removed due to close zero-variance.")
                 
-        # DROP
+        # DROP everything we don't need any longer
         self.data = self.data.drop(["host_location","host_id", "host_url", "name", "description", "neighborhood_overview", "host_name", "host_about"], axis = 1)
 
         # CHECK FOR NaNs
@@ -579,6 +544,7 @@ class Wrangler:
 
         return self.data
     
+    # We now fit the PCAs only with the training data to prevent any data leak
     def fit_second(self):
         # PCAs FIT
         self.city_life = ["nightclubs", "sex_amenities", "bicycle_rentals", "casinos", "university", "kiosks",
@@ -695,9 +661,10 @@ class Wrangler:
         img_no_df = self.scaler_pca_img_no.transform(self.data[self.img_no])
         self.pca_img_no = PCA(n_components = 5).fit(img_no_df)
 
-
         return self 
     
+    # We now transform every dataset routed through the transformation with the fitted PCAs. Note that it is not necessary to route every dataset through this tranformation
+    # We also need variables for interpretability in the correlation analysis where we don't perform PCAs
     def transform_second(self):
 
         # PCA TRANSFORMS
@@ -796,56 +763,26 @@ class Wrangler:
         self.data["img_no_pca5"] = image_pcas[:,4]
         self.data = drop_col(self.data, self.img_no, regex = False)
                 
-        # DROP DUE TO CORRELATION  
+        # DROP DUE TO CORRELATION from visiual inspection of the covariance matrix 
         check_cols =  ["Washer_available", "Hangers", "Hair_dryer", "Iron", "Smoke_alarm",
                       "First_aid_kit", "Paid_parking", "Shower_gel", "Bathtub", "Baby_friendly",
                       "Coffee_machine_available", "Patiwie kano_balcony_available", "Host_greets_you",
                       "first_review", "review_scores_accuracy", "review_scores_accuracy",           
                       "review_scores_value", "Lock_on_bedroom_door", "Safe_available", "Private_entrance",
                       "Bed_linens", "contrast", "Cable_TV", "Indoor_fireplace", "Breakfast"]
-        
-        
         for i in check_cols:
             if i in self.data.columns.values.tolist():
                 self.data.drop(i, axis = 1, inplace = True)
                 
-        
-        
-        # # keep Dryer available
-        # self.data = drop_col(self.data, ["Washer_available"], regex = False) 
-        # # no good PCA, keep Shampoo_Conditioner_available
-        # self.data = drop_col(self.data, ["Hangers", "Hair dryer", "Iron"], regex = False) 
-        # # keep Washer available, Kitchen in PCA
-        # self.data = drop_col(self.data, ["Smoke alarm", "host_location_country_Ireland"], regex = False) 
-        # # keep fire extinguisher
-        # self.data = drop_col(self.data, ["First aid kit"], regex = False) 
-        # # keep Bed linens
-        # self.data = drop_col(self.data, ["Hot water"], regex = False) 
-        # # keep Private Entrance
-        # self.data = drop_col(self.data, ["Cable TV", "Indoor fireplace"], regex = False) 
-        # # keep Safe_available
-        # self.data = drop_col(self.data, ["Paid_parking", "Shower gel", "Bathtub", "Baby_friendly"], regex = False) 
-        # # Dishwasher in KitchenPCA, keep garden_available
-        # self.data = drop_col(self.data, ["Coffee_machine_available", "Patio_balcony_available"], regex = False) 
-        # # keep Breakfast, bath private in bath PCA
-        # self.data = drop_col(self.data, ["Host greets you"], regex = False) 
-        # # keep last_review
-        # self.data = drop_col(self.data, ["first_review"], regex = False) 
-        # # PCA does not work that good, keep "review_scores_communication"
-        # self.data = drop_col(self.data, ["review_scores_location", "review_scores_accuracy",   
-        #                                 "review_scores_cleanliness", "review_scores_value"], regex = False) 
-        # # keep breakfast
-        # self.data = drop_col(self.data, ["Lock on bedroom door"], regex = False) 
-        # # keep Private Entrance
-        # self.data = drop_col(self.data, ["Safe_available", "Garden_backyard_available"], regex = False) 
-        # # will correlate with kitchen pca
-        # self.data = drop_col(self.data, ["Bed linens"], regex = False) 
         if self.verbose > 0:
             print("PCA's built and correlated features dropped.")
         
         return self.data
     
+    # Here finally find all variables that are not significant in a welch test and save them for the transformation step
+    # Also fit the standardization on the training data only
     def fit_third(self, fit_listing = False):
+        # T-Tests for listings only
         if fit_listing == True:
             # T-TESTS
             # get binary variables
@@ -875,11 +812,13 @@ class Wrangler:
         num_col = [col for col in self.data if ~np.isin(self.data[col].unique(), [0, 1]).all()]
         num_col.remove("price")
         num_col.remove("id")
+        # Standardization on the training data only
         scaler = StandardScaler()
         self.scaler_final = scaler.fit(self.data[num_col])
         
         return self
     
+    # Apply fitted
     def transform_third(self, log_transform = True, drop_id = True, standardize = True):
         # T-TESTS
         if len(self.insig) > 0:
@@ -911,6 +850,9 @@ class Wrangler:
         
         return self.data, price
 
+
+    # FUNCTIONS TO AGGREGATE THE INDIVIDUAL STEPS 
+    # Fit and transform steps together (FOR TRAINING)
     def fit_transform(self, X, log_transform = True, drop_id = True):
 
         self.data = X
@@ -926,6 +868,7 @@ class Wrangler:
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
         
+    # Transform steps only on the fitted transformations (from training and listings) (FOR TEST AND VALIDATION)
     def transform(self, X, log_transform = True, drop_id = True, munich = False):
         self.data = X
         self.data = self.preprocess()
@@ -937,6 +880,7 @@ class Wrangler:
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
 
+    # Fit and transform steps together only without PCA (FOR TRAINING)
     def fit_transform_dendro(self, X, log_transform = True, drop_id = True, standardize = True):
         self.data = X
         self.data = self.preprocess()
@@ -948,7 +892,8 @@ class Wrangler:
         self.data, price = self.transform_third(log_transform, drop_id, standardize = standardize)
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
-        
+    
+    # Transform steps only on the fitted transformations (from training and listings) only without PCA (FOR TEST AND VALIDATION)
     def transform_dendro(self, X, log_transform = True, drop_id = True, standardize = True, munich = False):
         self.data = X
         self.data = self.preprocess()
@@ -959,18 +904,7 @@ class Wrangler:
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
     
-    def fit_transform_dendro(self, X, log_transform = True, drop_id = True, standardize = True):
-        self.data = X
-        self.data = self.preprocess()
-        self.data = self.process_amenities(fit = False)
-        self.data = self.add_stuff()
-        self.fit_first()
-        self.data = self.transform_first(fit = False)
-        self.fit_third()
-        self.data, price = self.transform_third(log_transform, drop_id, standardize = standardize)
-        self.data.columns = self.data.columns.str.replace(" ","_")       
-        return self.data, price
-    
+    # Fit variance thresholds t-tests only with listings
     def fit_listings(self, X, log_transform = True, drop_id = True, standardize = True):
         self.data = X
         self.data = self.preprocess()
@@ -983,8 +917,7 @@ class Wrangler:
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
 
-#### FOR CV
-
+#### FOR CV - aggregated methods for the CV to ensure different pcas depending on fold
     def fit_transform_val_first(self, X, log_transform = True, drop_id = True):
         self.data = X
         self.data = self.preprocess()
@@ -1025,7 +958,8 @@ class Wrangler:
         self.data.columns = self.data.columns.str.replace(" ","_")       
         return self.data, price
 
-
+# Wrap everything in a function that loads the listings, fit the wrangler class for listings
+# then splits the data in train, test, val and fits + transforms on training and only transforms for test and validation
 def load_data(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro = False, drop_id = True, standardize = True, verbose = 0):
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     listings = pd.read_csv(url_listing)
@@ -1086,6 +1020,7 @@ def load_data(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro =
     
     return X_train, X_test, X_val, y_train, y_test, y_val
 
+# get fold specific splits
 def load_data_cv(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro = False, drop_id = True, standardize = True, train_idx = None, val_idx = None, verbose = 0):
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     listings = pd.read_csv(url_listing)
@@ -1155,6 +1090,7 @@ def load_data_cv(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendr
     X_test, y_test = wrangler.transform(X_test, drop_id=drop_id)
     return X_train, X_test, X_val, y_train, y_test, y_val
 
+# route the munich data through the class 
 def load_data_munich(random_seed = 123, test_split = 0.2, val_split = 0.2, for_dendro = False, drop_id = True, standardize = True, train_idx = None, val_idx = None, verbose = 0):
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     listings = pd.read_csv(url_listing)
@@ -1178,7 +1114,7 @@ def load_data_munich(random_seed = 123, test_split = 0.2, val_split = 0.2, for_d
     X_train = X_train.reset_index(drop = True)
 
     if for_dendro:
-        # Then use the CV index
+        # Use the CV index
         X_train = X_train.iloc[train_idx,:]
         X_train = X_train.reset_index(drop = True)
         # Then fit everything as before on training and transform val and test data
@@ -1237,7 +1173,7 @@ def load_data_munich(random_seed = 123, test_split = 0.2, val_split = 0.2, for_d
 
     return X_train, X_munich, y_train, y_munich
 
-
+# get fold specific data for munich
 def load_data_munich_fold(fold, verbose = 0, for_dendro = False, standardize = False):
     url_listing = "http://data.insideairbnb.com/ireland/leinster/dublin/2021-11-07/data/listings.csv.gz"
     listings = pd.read_csv(url_listing)
@@ -1252,7 +1188,6 @@ def load_data_munich_fold(fold, verbose = 0, for_dendro = False, standardize = F
     X_train = X_train.reset_index(drop = True)
 
     kf = KFold(n_splits=5)
-
     c = 1                       
 
     for t, v in kf.split(X_train):
@@ -1278,9 +1213,8 @@ def load_data_fold(fold, verbose = 0, for_dendro = False, standardize = False, d
     listings = listings[filter]
     X_train, _ = train_test_split(listings, random_state = 123, test_size = 0.2)
     X_train = X_train.reset_index(drop = True)
-
+    
     kf = KFold(n_splits=5)
-
     c = 1                       
 
     for t, v in kf.split(X_train):
@@ -1290,4 +1224,3 @@ def load_data_fold(fold, verbose = 0, for_dendro = False, standardize = False, d
     X_train, X_test, X_val, y_train, y_test, y_val = load_data_cv(train_idx = t, val_idx = v, drop_id = drop_id, for_dendro=for_dendro, standardize = standardize)
 
     return X_train, X_test, X_val, y_train, y_test, y_val
-

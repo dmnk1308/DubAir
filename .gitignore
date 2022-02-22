@@ -9,7 +9,7 @@ data/tfrecord_labeled
 data/tfrecord_labeled_small
 data/tfrecord_unlabeled
 
-
-
-
-logs
+archive/
+data/
+logs/
+__pycache__/

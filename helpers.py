@@ -6,7 +6,7 @@ from scipy.stats import kruskal
 
 # turns all columns (in_cat) into one column (out_cat)
 def in_one(df, in_cat, out_cat_name, regex = True, sum = False, drop = True):
-
+    ''' Turns all columns (in_cat) into one column (out_cat) '''
     if regex == True:
         # get columns to substitute
         col_filter = df.columns.str.contains(in_cat, case = False, regex = True)
@@ -35,6 +35,7 @@ def in_one(df, in_cat, out_cat_name, regex = True, sum = False, drop = True):
 
 # deletes several columns
 def drop_col(df, sender, regex = True):
+    ''' Deletes several columns and once which contain regex (regex = True) '''
     if regex == True:
         col_filter = df.columns.str.contains(sender, case = False, regex = True)
         sender = df.columns[col_filter] 
@@ -43,6 +44,7 @@ def drop_col(df, sender, regex = True):
 
 # adds several columns to another existing one
 def add_col(df, sender, receiver, regex = True):
+    ''' Adds values of several columns to another existing column '''
     if regex == True:
         col_filter = df.columns.str.contains(sender, case = False, regex = True)
         sender = df.columns[col_filter] 
@@ -52,7 +54,9 @@ def add_col(df, sender, receiver, regex = True):
     return df
 
 # Let's define a function that sets up the dummies and drops the category column:
+# first for one column
 def to_dummy_single(df, X, output_name):
+    ''' Makes dummies from column (X) and gives back the new column names '''
     dummies = pd.get_dummies(df[X])
     dummies.columns = output_name + "_" + dummies.columns
 
@@ -63,12 +67,11 @@ def to_dummy_single(df, X, output_name):
     df = df.drop(X, axis=1)
 
     return df
-
-
+# then for many columns
 def to_dummy(df, X_list, output_names):
+    ''' Makes dummies for several columns and returns with appropriate column name '''
     for i in range(len(X_list)):
         df = to_dummy_single(df, X_list[i], output_names[i])
-
     return df
 
 
@@ -97,6 +100,7 @@ def clean_comments(text):
 
 
 def t_Test(X, y, stats, p_val, names):
+    ''' Perform Welche test '''
     catg = pd.unique(X)
     catg_filter = (X == catg[0])
     sample1 = y[catg_filter]
@@ -109,10 +113,10 @@ def t_Test(X, y, stats, p_val, names):
     p_val.append(p)
     names.append(name)
 
-
     return t, p
 
 def krus_test(X, y, stats, p_val, names):
+    ''' Perform Kruskal test '''
     c_list = pd.unique(X)
 
     F, p = kruskal(*[list(y[X == i]) for i in c_list])
