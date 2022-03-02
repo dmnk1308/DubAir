@@ -156,8 +156,8 @@ def make_dataset(file_path, batch_size, seed = 123, prediction = False, training
         'label': tf.io.FixedLenFeature((), tf.int64),
     }
     example = tf.io.parse_single_example(example_proto, feature_spec)
+    
    # the image needs further treatment
-
     image = tf.io.decode_png(example['image'],channels =3)
     example["input_1"] = image
     label = example.pop('label')
