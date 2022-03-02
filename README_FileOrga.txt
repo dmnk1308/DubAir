@@ -5,7 +5,7 @@ Folders:
 TabNet_selected - gridsearch, model, histories
 TabNet_correlated - gridsearch, model, histories
 archive - files not used anymore for several reasons
-data - originally downloaded data
+data - originally downloaded data and image variables
 img_models - further folders for different image models with saved models, checkpoints and data
 munich - notebooks and csv's concerning munich prediction
 pcas - PCA plots for Paper
@@ -41,15 +41,13 @@ File holding interim results
 - Price.csv (for load_data.py)
 - StreetData.csv
 - grid_results_priceimage.csv (outcome of image_price.ipynb)
-- images_df.csv (Image data, for load_data.py)
 - labels_raw.json (labels of scraped images)
-- self.data.csv (for load_data.py)
 
 
 Helpfiles:
 - PCA.ipynb (used for experimenting with PCAs during feature_selection.ipynb)
 - helpers.py (functions used in several scripts)
-- helpers_image_classification.py (for image_price.ipynb)
+- helpers_image_classification.py (for RoomModel.ipynb image_price.ipynb)
 - sentiment_dictionary.csv (NLTK, for Text_Analysis.ipynb)
 
 
