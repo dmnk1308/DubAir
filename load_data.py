@@ -224,6 +224,12 @@ class Wrangler:
             listings_osm = pd.read_csv("munich/StreetData_munich.csv")
             listings_osm = listings_osm.drop(listings_osm.columns[0], axis=1)
             self.data = pd.merge(self.data, listings_osm, on="id", how="left")        
+            
+            # ADD IMAGE STUFF
+            img_df = pd.read_csv("munich/img_info.csv")
+            self.data = self.data.merge(img_df, how = "left", on = "id")
+            if self.verbose > 0:
+                print("Text, OpenStreet and image data loaded.")
         
         else:
             # read in pre-created frames
@@ -244,12 +250,12 @@ class Wrangler:
             listings_osm = listings_osm.drop(listings_osm.columns[0], axis=1)
             self.data = pd.merge(self.data, listings_osm, on="id", how="left")
             
-        # ADD IMAGE STUFF
-        img_df = pd.read_csv("data/img_info.csv")
-        self.data = self.data.merge(img_df, how = "left", on = "id")
-        self.data.drop("index", axis =1, inplace = True)
-        if self.verbose > 0:
-            print("Text, OpenStreet and image data loaded.")
+            # ADD IMAGE STUFF
+            img_df = pd.read_csv("data/img_info.csv")
+            self.data = self.data.merge(img_df, how = "left", on = "id")
+            self.data.drop("index", axis =1, inplace = True)
+            if self.verbose > 0:
+                print("Text, OpenStreet and image data loaded.")
         return self.data
 
     def fit_first(self, fit_listing = False):
