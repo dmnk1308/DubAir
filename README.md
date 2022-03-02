@@ -1,3 +1,8 @@
+This Repo contains several files and folders. In the following a short description is given for the most relevant parts.
+In general - the files in the main directory contain the most relevant code for the analysis (Data processing, Models,...)
+The "load_data.py" script contains the class which handles the data loading process with several transformations
+
+
 # Technical folders or files
 .idea, TabNet_GS_logs, __pychache__, .DS_Store and .gitignore 
 
@@ -14,21 +19,15 @@ plots - Plots mainly used for Paper
 text_data - saved csv's used for load_data.py as well needed Files within Text_Analysis.ipynb
 xgBoost_models - results and models 
 
-
-'''
-Files not in a Folder are Files we mainly worked with:
-Core file with class for data organisation: load_data.py
-'''
-
 # Data generating and similar:
-*Imputation_New.ipynb (looking insight variables where imputations were needed)
-*OSM.ipynb (work on spatial data)
-*Text_Analysis.ipynb (work on text variables)
-*image_scraping.ipynb (only used for scraping images)
+- Imputation_New.ipynb (looking insight variables where imputations were needed)
+- OSM.ipynb (work on spatial data)
+- Text_Analysis.ipynb (work on text variables)
+- image_scraping.ipynb (only used for scraping images)
 
 
 # Feature Selection: 
-*feature_selection.ipynb
+-feature_selection.ipynb
 
 
 # Models including grid searches:
