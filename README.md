@@ -14,7 +14,6 @@ The "load_data.py" script contains the class which handles the data loading proc
 - data - originally downloaded data and generated image variables
 - img_models - further folders for different image models with saved models, checkpoints, grid search results etc.
 - munich - notebooks and csv's concerning munich prediction
-- pcas - PCA plots for Paper
 - plots - Plots mainly used for Paper
 - logs - Several Tensorboard logs to track model training and checkpoints to restore models
 - text_data - saved csv's used for load_data.py as well needed Files within Text_Analysis.ipynb
@@ -43,9 +42,7 @@ Decorrelate Variables by visual inspection
 
 
 ## File holding interim results
-- Price.csv (for load_data.py)
 - StreetData.csv
-- grid_results_priceimage.csv (outcome of image_price.ipynb)
 
 
 ## Helper files:
@@ -56,7 +53,6 @@ Decorrelate Variables by visual inspection
 
 
 ## Content-making for Paper
-- PCA_Paper.ipynb
 - plot_tables_paper.ipynb
 
 
